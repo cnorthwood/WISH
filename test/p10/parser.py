@@ -98,10 +98,6 @@ class P10ParserTest(unittest.TestCase):
         p.registerHandler("TEST", d)
         p.parse("AB TEST baz\r\n")
         self.assertEquals((1,None), d.origin)
-    
-    def testParseNonNumericOrigin(self):
-        # TODO: Need to create state object first
-        self.assertTrue(False)
 
 def main():
     unittest.main()

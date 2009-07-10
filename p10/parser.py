@@ -20,8 +20,7 @@ class parser():
         string = string.rstrip()
         
         high_level_parts = string.split(None, 2)
-        origin = high_level_parts[0]
-        origin = base64.parseNumeric(origin)
+        origin = base64.parseNumeric(high_level_parts[0])
         command = high_level_parts[1]
         if not command.isupper():
             raise ParseError('Command not in uppercase', string)

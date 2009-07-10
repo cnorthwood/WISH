@@ -38,6 +38,27 @@ class Base64Test(unittest.TestCase):
     def testUniversalIRCUNumericParse(self):
         self.assertEqual((0, 0), p10.base64.parsenumeric('AAAA'))
         self.assertEqual((32, 127), p10.base64.parsenumeric('gAB]'))
+    
+    def testCreateBase64SingleChar(self):
+        self.assertEqual('A', p10.base64.tobase64(0))
+        self.assertEqual('a', p10.base64.tobase64(26))
+    
+    def testCreateBase64MultiChar(self):
+        self.assertEqual('BA', p10.base64.tobase64(64))
+        self.assertEqual('Ba', p10.base64.tobase64(90))
+        self.assertEqual('B]', p10.base64.tobase64(127))
+    
+    def testCreateClientNumeric(self):
+        self.assertEqual('B]BBa', p10.base64.createnumeric((127, 4186)))
+    
+    def testCreateServerNumeric(self):
+        self.assertEqual('BA', p10.base64.createnumeric((64, None)))
+    
+    def testCreateClientNumericRightLength(self):
+        self.assertEqual('AqAB6', p10.base64.createnumeric((42, 122)))
+    
+    def testCreateServerNumericRightLength(self):
+        self.assertEqual('A5', p10.base64.createnumeric((57, None)))
 
 
 def main():

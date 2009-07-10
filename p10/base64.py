@@ -67,7 +67,7 @@ _map = {"A": 0,
 
 _revmap = dict(zip(_map.values(), _map.keys()))
 
-def toint(chars):
+def toInt(chars):
     accum = 0
     chars = list(chars)
     chars.reverse()
@@ -81,12 +81,11 @@ def toint(chars):
         power = power + 1
     return accum
 
-def tobase64(num):
+def toBase64(num):
     parts = list()
     power = 0
     while num > (64 ** power):
         power = power + 1
-    print
     while power >= 0:
         part = num / (64 ** power)
         parts.append(_revmap[part])
@@ -98,24 +97,24 @@ def tobase64(num):
     else:
         return parts
 
-def parsenumeric(numeric):
+def parseNumeric(numeric):
     if len(numeric) == 1 or len(numeric) == 2:
-        return (toint(numeric), None)
+        return (toInt(numeric), None)
     elif len(numeric) == 3:
-        return (toint(numeric[0]), toint(numeric[1:3]))
+        return (toInt(numeric[0]), toInt(numeric[1:3]))
     elif len(numeric) == 4:
-        return (toint(numeric[0]), toint(numeric[1:4]))
+        return (toInt(numeric[0]), toInt(numeric[1:4]))
     elif len(numeric) == 5:
-        return (toint(numeric[0:2]), toint(numeric[2:5]))
+        return (toInt(numeric[0:2]), toInt(numeric[2:5]))
 
 # Send only extended numerics for maximum compatibility
-def createnumeric((server, client)):
-    servernum = tobase64(server)
+def createNumeric((server, client)):
+    servernum = toBase64(server)
     while len(servernum) < 2:
         servernum = "A" + servernum
     clientnum = ""
     if client != None:
-        clientnum = tobase64(client)
+        clientnum = toBase64(client)
         while len(clientnum) < 3:
             clientnum = "A" + clientnum
     return servernum + clientnum

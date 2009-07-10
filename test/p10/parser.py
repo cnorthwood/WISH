@@ -6,9 +6,11 @@ import p10.parser
 class CommandHandlerDouble():
     
     rcvd = []
+    origin = None
     
     def handle(self, origin, line):
         self.rcvd = line
+        self.origin = origin
 
 class P10ParserTest(unittest.TestCase):
     
@@ -82,6 +84,24 @@ class P10ParserTest(unittest.TestCase):
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
         self.assertRaises(p10.parser.ParseError, p.parse, ":testuser test foo\r\n")
+    
+    def testOriginSetCorrectly(self):
+        p = p10.parser.parser()
+        d = CommandHandlerDouble()
+        p.registerHandler("TEST", d)
+        p.parse("ABAAB TEST baz\r\n")
+        self.assertEquals((1,1), d.origin)
+    
+    def testOriginSetCorrectlyServerOnly(self):
+        p = p10.parser.parser()
+        d = CommandHandlerDouble()
+        p.registerHandler("TEST", d)
+        p.parse("AB TEST baz\r\n")
+        self.assertEquals((1,None), d.origin)
+    
+    def testParseNonNumericOrigin(self):
+        # TODO: Need to create state object first
+        self.assertTrue(False)
 
 def main():
     unittest.main()

@@ -6,8 +6,17 @@ class parser():
     
     _handlers = dict()
     
+    def __init__(self):
+        self._handlers = dict()
+    
     def registerHandler(self, token, handler):
         self._handlers[token] = handler
+    
+    def _passToHandler(self, origin, token, args):
+        try:
+            self._handlers[token].handle(origin, args)
+        except KeyError:
+            raise ParseError("Unknown command", None)
     
     def parse(self, string):
         
@@ -36,7 +45,27 @@ class parser():
             params = params[0].split(None)
             if last_arg != None:
                 params.append(last_arg)
-        self._handlers[command].handle(origin, params)
+        try:
+            self._passToHandler(origin, command, params)
+        except ParseError as error:
+            raise ParseError(error.value, string)
+    
+    def build(self, origin, token, args):
+        if args[-1].find(" ") > -1:
+            build_last_arg = ":" + args[-1]
+            build_args = args[0:-1] + build_last_arg.split(" ")
+        else:
+            build_args = args
+        ret = base64.createNumeric(origin) + " " + token + " " + " ".join(build_args) + "\r\n"
+        if len(ret) > 512:
+            raise ParseError('Line too long to send', ret)
+        if not token.isupper():
+            raise ParseError('Command not in uppercase during build', ret)
+        try:
+            self._passToHandler(origin, token, args)
+        except ParseError as error:
+            raise ParseError(error.value, ret)
+        return ret
 
 class ParseError(Exception):
     

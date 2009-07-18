@@ -3,6 +3,10 @@
 class state():
     
     _auths = dict()
+    _connection = None
+    
+    def __init__(self, connection):
+        self.connection = connection
     
     def authenticate(self, numeric, acname):
         self._auths[numeric] = acname

@@ -6,6 +6,7 @@ import test.p10.parser
 import test.p10.base64
 import test.p10.state
 import test.p10.commands.account
+import test.p10.commands.admin
 
 def main():
     suite = unittest.TestSuite()
@@ -13,6 +14,7 @@ def main():
     suite.addTest(unittest.TestLoader().loadTestsFromModule(test.p10.base64))
     suite.addTest(unittest.TestLoader().loadTestsFromModule(test.p10.state))
     suite.addTest(unittest.TestLoader().loadTestsFromModule(test.p10.commands.account))
+    suite.addTest(unittest.TestLoader().loadTestsFromModule(test.p10.commands.admin))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     if result.wasSuccessful():
         sys.exit(0)

@@ -12,7 +12,7 @@ class StateDouble():
 class AccountTest(unittest.TestCase):
     
     def testSourceMustBeServer(self):
-        s = p10.state.state()
+        s = StateDouble()
         c = p10.commands.account.account(s)
         self.assertRaises(p10.parser.ProtocolError, c.handle, (1, 1), ["ABAAB","Test"])
     

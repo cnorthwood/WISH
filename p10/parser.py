@@ -47,7 +47,7 @@ class parser():
                 params.append(last_arg)
         try:
             self._passToHandler(origin, command, params)
-        except ParseError as error:
+        except ParseError, error:
             raise ParseError(error.value, string)
     
     def build(self, origin, token, args):

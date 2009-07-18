@@ -48,3 +48,6 @@ class ParseError(Exception):
     
     def __str__(self):
         return repr(self.value) + " on line " + self.line
+
+class ProtocolError(Exception):
+    pass

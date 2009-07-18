@@ -63,7 +63,7 @@ class parser():
             raise ParseError('Command not in uppercase during build', ret)
         try:
             self._passToHandler(origin, token, args)
-        except ParseError as error:
+        except ParseError, error:
             raise ParseError(error.value, ret)
         return ret
 

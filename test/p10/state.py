@@ -3,7 +3,7 @@
 import unittest
 import p10.state
 
-class ConnectionDouble():
+class ConnectionDouble:
     numericID = 1
     called = False
     def send_line(self, source_client, token, args):

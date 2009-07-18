@@ -3,7 +3,7 @@
 import unittest
 import p10.parser
 
-class CommandHandlerDouble():
+class CommandHandlerDouble:
     
     rcvd = []
     origin = None

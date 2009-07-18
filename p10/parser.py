@@ -2,7 +2,7 @@
 
 import base64
 
-class parser():
+class parser:
     
     _handlers = dict()
     

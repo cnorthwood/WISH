@@ -4,7 +4,7 @@ import unittest
 import p10.commands.account
 import p10.state
 
-class StateDouble():
+class StateDouble:
     numeric = None
     def authenticate(self, numeric, acname):
         self.numeric = numeric

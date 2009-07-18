@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-class state():
+class state:
     
     _auths = dict()
     _connection = None

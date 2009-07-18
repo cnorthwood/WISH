@@ -3,7 +3,7 @@
 import p10.parser
 import p10.base64
 
-class account():
+class account:
     
     _state = None
     

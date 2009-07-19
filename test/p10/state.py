@@ -5,8 +5,9 @@ import p10.state
 
 class ConnectionDouble:
     numericID = 1
+    serverName = "example.com"
     called = False
-    def send_line(self, source_client, token, args):
+    def sendLine(self, source_client, token, args):
         self.called = True
 
 class StateTest(unittest.TestCase):
@@ -20,6 +21,18 @@ class StateTest(unittest.TestCase):
     def testSendMessage(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
+        s.sendLine(2, "TEST", ['foo'])
+        self.assertTrue(c.called)
+    
+    def testGetNumericID(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertEqual(1, s.getServerID())
+    
+    def testGetServerName(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertEqual("example.com", s.getServerName())
 
 def main():
     unittest.main()

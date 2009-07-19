@@ -2,7 +2,6 @@
 
 import unittest
 import p10.commands.account
-import p10.state
 
 class StateDouble:
     numeric = None

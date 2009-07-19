@@ -2,14 +2,10 @@
 
 import p10.parser
 import p10.base64
+import genericcommand
 
-class account:
+class account(genericcommand.genericcommand):
     """ Parses the AC/ACCOUNT token - users authenticating """
-    
-    _state = None
-    
-    def __init__(self, state):
-        self._state = state
     
     def handle(self, origin, line):
         # Only accept from servers

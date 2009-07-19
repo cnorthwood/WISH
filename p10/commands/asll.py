@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import Dummy
+import genericcommand
 
-class asll(Dummy.DummyHandler):
+class asll(genericcommand.genericcommand):
     pass

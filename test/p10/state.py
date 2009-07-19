@@ -63,9 +63,15 @@ class StateTest(unittest.TestCase):
     def testNegativeModesWithArgs(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
-        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, "Test User")
+        s.newUser((1,1), "test", "test", "example.com", [("+b", None)], 0, "Test User")
         s.users[(1,1)].changeMode(("-b",None))
         self.assertFalse(s.users[(1,1)].hasGlobalMode('b'))
+    
+    def testNewUserMustNotExist(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, "Test User")
+        self.assertRaises(p10.state.StateError, s.newUser, (1,1), "test2", "test2", "example.com", [("+r", "Test")], 6, "Duplicate Test User")
 
 def main():
     unittest.main()

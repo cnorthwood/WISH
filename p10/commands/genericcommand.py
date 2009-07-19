@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
-class DummyHandler():
+class genericcommand:
+    
+    _state = None
     
     def __init__(self, state):
-        pass
+        self._state = state
     
     def handle(self, origin, line):
         pass

@@ -43,7 +43,10 @@ class state:
     
     def newUser(self, numeric, nickname, username, hostname, modes, ip, fullname):
         """ Change state to include a new user """
-        self.users[numeric] = user(numeric, nickname, username, hostname, modes, ip, fullname)
+        if numeric in self.users:
+            raise StateError("Numeric collision - attempting to create second user with numeric we already know")
+        else:
+            self.users[numeric] = user(numeric, nickname, username, hostname, modes, ip, fullname)
 
 class user:
     """ Represents a user internally """

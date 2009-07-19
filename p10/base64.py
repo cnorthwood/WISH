@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+""" A mapping of base 64 characters to the relevant values """
 _map = {"A": 0,
         "B": 1,
         "C": 2,
@@ -68,6 +69,7 @@ _map = {"A": 0,
 _revmap = dict(zip(_map.values(), _map.keys()))
 
 def toInt(chars):
+    """ Convert a base 64 string to its appropriate base-10 integer """
     accum = 0
     chars = list(chars)
     chars.reverse()
@@ -82,6 +84,8 @@ def toInt(chars):
     return accum
 
 def toBase64(num):
+    """ Convert a base-10 integer to a base-64 string """
+    # Build a list of all the appropriate characters
     parts = list()
     power = 0
     while num > (64 ** power):
@@ -93,33 +97,53 @@ def toBase64(num):
         power = power - 1
     parts = ''.join(parts)
     if len(parts) > 1:
+        # Trim the valueless characters off the front, apart from if the value is a literal 0
         return parts.lstrip('A')
     else:
         return parts
 
 def parseNumeric(numeric):
+    """ Take a numeric and return a tuple of integers, the first representing the server numeric, the second the client numeric.
+        If the numeric is server-only, then the second element in the pair is set to None """
+    
+    # Short and extended server only numerics
     if len(numeric) == 1 or len(numeric) == 2:
         return (toInt(numeric), None)
+    # Short server/client numerics
     elif len(numeric) == 3:
         return (toInt(numeric[0]), toInt(numeric[1:3]))
+    # Universal IRCU server/client numerics
     elif len(numeric) == 4:
         return (toInt(numeric[0]), toInt(numeric[1:4]))
+    # Extended server/client numerics
     elif len(numeric) == 5:
         return (toInt(numeric[0:2]), toInt(numeric[2:5]))
 
-# Send only extended numerics for maximum compatibility
 def createNumeric((server, client)):
+    """ Create a numeric from a pair of integers - with the first representing the server numeric, the second the client.
+        This only generates extended (5 character) numerics for maximum compatibility """
+    
+    # Generate the server half
     servernum = toBase64(server)
+    
+    # Pad to required length
     while len(servernum) < 2:
         servernum = "A" + servernum
+    
+    # Handle server-only numerics
     clientnum = ""
     if client != None:
+        # Generate client half
         clientnum = toBase64(client)
+        
+        # Pad to correct length
         while len(clientnum) < 3:
             clientnum = "A" + clientnum
+    
     return servernum + clientnum
 
 class Base64Error(Exception):
+    """ An exception that is raised if there is an error generating or parsing the base 64 """
     
     numeric = ""
     

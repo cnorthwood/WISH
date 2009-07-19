@@ -3,6 +3,7 @@
 import p10.base64
 
 class admin:
+    """ Returns the administrative information for the server """
     
     _state = None
     

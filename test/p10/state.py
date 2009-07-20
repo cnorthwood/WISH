@@ -73,6 +73,12 @@ class StateTest(unittest.TestCase):
         s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertRaises(p10.state.StateError, s.newUser, (1,1), "test2", "test2", "example.com", [("+r", "Test")], 6, 0, 0, "Duplicate Test User")
     
+    def testNewUserAuthenticatesCorrectly(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+r", "test")], 0, 0, 0, "Test User")
+        self.assertEquals("test", s.users[(1,1)].account)
+    
     def testChangeNick(self):
         c = ConnectionDouble()
         s = p10.state.state(c)

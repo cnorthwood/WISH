@@ -96,6 +96,9 @@ class user:
             self._modes[mode[0][1]] = True
         elif mode[0][0] == "+" and mode[1] != None:
             self._modes[mode[0][1]] = mode[1]
+            # If this mode is an authentication mode (i.e., in a burst)
+            if mode[0][1] == "r":
+                self.auth(mode[1])
         else:
             self._modes[mode[0][1]] = False
     

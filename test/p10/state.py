@@ -90,6 +90,40 @@ class StateTest(unittest.TestCase):
         c = ConnectionDouble()
         s = p10.state.state(c)
         self.assertRaises(p10.state.StateError, s.changeNick, (1,1), "test2", 2)
+    
+    def testMarkAway(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertFalse(s.users[(1,1)].isAway())
+        s.setAway((1,1), "Away reason")
+        self.assertTrue(s.users[(1,1)].isAway())
+    
+    def testMarkAwayNeedsParam(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertRaises(p10.state.StateError, s.setAway, (1,1), "")
+    
+    def testMarkAwayNeedsExist(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.setAway, (1,1), "")
+    
+    def testMarkBack(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertFalse(s.users[(1,1)].isAway())
+        s.setAway((1,1), "Away reason")
+        self.assertTrue(s.users[(1,1)].isAway())
+        s.setBack((1,1))
+        self.assertFalse(s.users[(1,1)].isAway())
+    
+    def testMarkBackNeedsExist(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.setBack, (1,1))
 
 def main():
     unittest.main()

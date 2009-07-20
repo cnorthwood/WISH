@@ -55,6 +55,20 @@ class state:
             self.users[numeric].ts = newts
         else:
             raise StateError('Nick change attempted for unknown user')
+    
+    def setAway(self, numeric, reason):
+        if reason == "":
+            raise StateError("Attempted to set an empty away reason")
+        if self.userExists(numeric):
+            self.users[numeric].away_reason = reason
+        else:
+            raise StateError("Attempted to mark a user as away who does not exist")
+    
+    def setBack(self, numeric):
+        if self.userExists(numeric):
+            self.users[numeric].away_reason = None
+        else:
+            raise StateError("Attempted to mark a user as not away who does not exist")
 
 class user:
     """ Represents a user internally """
@@ -69,6 +83,7 @@ class user:
     account = ""
     hops = 0
     ts = 0
+    away_reason = None
     
     def __init__(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         self.numeric = numeric
@@ -82,6 +97,7 @@ class user:
         self.hops = hops
         self.ts = ts
         self.fullname = fullname
+        self.away_reason = None
     
     def auth(self, account):
         """ Mark this user as authenticated """
@@ -108,6 +124,12 @@ class user:
             return self._modes[mode]
         else:
             return False
+    
+    def isAway(self):
+        if self.away_reason == None:
+            return False
+        else:
+            return True
 
 class StateError(Exception):
     """ An exception raised if a state change would be impossible, generally suggesting we've gone out of sync """

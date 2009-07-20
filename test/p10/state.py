@@ -15,7 +15,7 @@ class StateTest(unittest.TestCase):
     def testAuthentication(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
-        s.newUser((1,1), "test", "test", "example.com", [], 0, "Test User")
+        s.newUser((1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
         s.authenticate((1,1), "Test")
         self.assertEqual("Test", s.getAccountName((1,1)))
     
@@ -27,7 +27,7 @@ class StateTest(unittest.TestCase):
     def testAuthenticationOnlyOnce(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
-        s.newUser((1,1), "test", "test", "example.com", [], 0, "Test User")
+        s.newUser((1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
         s.authenticate((1,1), "Test")
         self.assertRaises(p10.state.StateError, s.authenticate, (1,1), "Test2")
     
@@ -50,28 +50,40 @@ class StateTest(unittest.TestCase):
     def testCorrectModesOnCreation(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
-        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, "Test User")
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertTrue(s.users[(1,1)].hasGlobalMode('o'))
     
     def testCorrectModesWithArgs(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
-        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, "Test User")
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.users[(1,1)].changeMode(("+b","test"))
         self.assertEquals(s.users[(1,1)].hasGlobalMode('b'), "test")
     
     def testNegativeModesWithArgs(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
-        s.newUser((1,1), "test", "test", "example.com", [("+b", None)], 0, "Test User")
+        s.newUser((1,1), "test", "test", "example.com", [("+b", None)], 0, 0, 0, "Test User")
         s.users[(1,1)].changeMode(("-b",None))
         self.assertFalse(s.users[(1,1)].hasGlobalMode('b'))
     
     def testNewUserMustNotExist(self):
         c = ConnectionDouble()
         s = p10.state.state(c)
-        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, "Test User")
-        self.assertRaises(p10.state.StateError, s.newUser, (1,1), "test2", "test2", "example.com", [("+r", "Test")], 6, "Duplicate Test User")
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertRaises(p10.state.StateError, s.newUser, (1,1), "test2", "test2", "example.com", [("+r", "Test")], 6, 0, 0, "Duplicate Test User")
+    
+    def testChangeNick(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.changeNick((1,1), "test2", 2)
+        self.assertEquals(s.users[(1,1)].nickname, "test2")
+    
+    def testChangeNickUnknownUser(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.changeNick, (1,1), "test2", 2)
 
 def main():
     unittest.main()

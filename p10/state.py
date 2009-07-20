@@ -41,12 +41,20 @@ class state:
         """ Check if the user is known to us """
         return numeric in self.users
     
-    def newUser(self, numeric, nickname, username, hostname, modes, ip, fullname):
+    def newUser(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         """ Change state to include a new user """
-        if numeric in self.users:
+        if self.userExists(numeric):
             raise StateError("Numeric collision - attempting to create second user with numeric we already know")
         else:
-            self.users[numeric] = user(numeric, nickname, username, hostname, modes, ip, fullname)
+            self.users[numeric] = user(numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)
+    
+    def changeNick(self, numeric, newnick, newts):
+        """ Change the nickname of a user on the network """
+        if self.userExists(numeric):
+            self.users[numeric].nickname = newnick
+            self.users[numeric].ts = newts
+        else:
+            raise StateError('Nick change attempted for unknown user')
 
 class user:
     """ Represents a user internally """
@@ -59,8 +67,10 @@ class user:
     ip = 0
     fullname = ""
     account = ""
+    hops = 0
+    ts = 0
     
-    def __init__(self, numeric, nickname, username, hostname, modes, ip, fullname):
+    def __init__(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         self.numeric = numeric
         self.nickname = nickname
         self.username = username
@@ -69,6 +79,8 @@ class user:
         for mode in modes:
             self.changeMode(mode)
         self.ip = ip
+        self.hops = hops
+        self.ts = ts
         self.fullname = fullname
     
     def auth(self, account):

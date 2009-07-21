@@ -124,6 +124,48 @@ class StateTest(unittest.TestCase):
         c = ConnectionDouble()
         s = p10.state.state(c)
         self.assertRaises(p10.state.StateError, s.setBack, (1,1))
+    
+    def testCreateChannel(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertTrue(s.createChannel("#test", 6))
+        self.assertTrue(s.channelExists("#test"))
+        self.assertFalse(s.channelExists("#example"))
+    
+    def testReplaceChannel(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertTrue(s.createChannel("#test", 6))
+        s.joinChannel("#test", (1,1), ["o"])
+        self.assertTrue(s.channels["#test"].isop((1,1)))
+        self.assertTrue(s.createChannel("#test", 3))
+        self.assertEquals(3, s.channels["#test"].ts)
+        self.assertFalse(s.channels["#test"].isop((1,1)))
+        self.assertFalse(s.createChannel("#test", 6))
+    
+    def testSetChannelModes(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        self.assertFalse(s.channels["#test"].hasMode("p"))
+        s.changeChannelMode("#test", ("+p", None))
+        self.assertTrue(s.channels["#test"].hasMode("p"))
+    
+    def testSetChannelModesWithArgs(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        self.assertFalse(s.channels["#test"].hasMode("l"))
+        s.changeChannelMode("#test", ("+l", "26"))
+        self.assertEquals("26", s.channels["#test"].hasMode("l"))
+    
+    def testAddChannelBan(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        s.addChannelBan("#test", "*!*@*.example.com")
+        self.assertTrue("*!*@*.example.com" in s.channels["#test"].bans)
 
 def main():
     unittest.main()

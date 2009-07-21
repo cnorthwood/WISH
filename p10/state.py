@@ -5,9 +5,11 @@ class state:
     
     _connection = None
     users = dict()
+    channels = dict()
     
     def __init__(self, connection):
         self.users = dict()
+        self.channels = dict()
         self._connection = connection
     
     def authenticate(self, numeric, acname):
@@ -69,6 +71,40 @@ class state:
             self.users[numeric].away_reason = None
         else:
             raise StateError("Attempted to mark a user as not away who does not exist")
+    
+    def createChannel(self, name, ts):
+        """ Create a channel. Returns false if the new channel is invalid (i.e., is newer than one already known about) """
+        # Channel already exists
+        if name in self.channels:
+            # Our channel is older. Disregard.
+            if self.channels[name].ts < ts:
+                return False
+            # They're both the same!
+            elif self.channels[name].ts == ts:
+                return True
+            # Their channel is newer. Merge the 2 (but only users)
+            else:
+                # Get old users
+                oldusers = dict.keys(self.channels[name].users)
+                self.channels[name] = channel(name, ts)
+                for user in oldusers:
+                    self.joinChannel(name, user, [])
+                return True
+        else:
+            self.channels[name] = channel(name, ts)
+            return True
+    
+    def channelExists(self, name):
+        return name in self.channels
+    
+    def joinChannel(self, name, numeric, modes):
+        self.channels[name].join(numeric, modes)
+    
+    def changeChannelMode(self, name, mode):
+        self.channels[name].changeMode(mode)
+    
+    def addChannelBan(self, name, mask):
+        self.channels[name].addBan(mask)
 
 class user:
     """ Represents a user internally """
@@ -126,10 +162,60 @@ class user:
             return False
     
     def isAway(self):
+        """ Return whether a user is away or not """
         if self.away_reason == None:
             return False
         else:
             return True
+
+class channel:
+    """ Represents a channel internally """
+    
+    name = ""
+    ts = 0
+    users = dict()
+    _modes = dict()
+    bans = []
+    
+    def __init__(self, name, ts):
+        self.name = name
+        self.ts = ts
+        self.users = dict()
+        self._modes = dict()
+        self.bans = []
+    
+    def join(self, numeric, modes):
+        """ Add a user to a channel """
+        self.users[numeric] = modes
+    
+    def isempty(self):
+        if len(self.users) == 0:
+            return False
+        else:
+            return True
+    
+    def isop(self, numeric):
+        """ Check if a user is op on a channel """
+        return "o" in self.users[numeric]
+    
+    def changeMode(self, mode):
+        """ Change a single mode associated with this channel """
+        if mode[0][0] == "+" and mode[1] == None:
+            self._modes[mode[0][1]] = True
+        elif mode[0][0] == "+" and mode[1] != None:
+            self._modes[mode[0][1]] = mode[1]
+        else:
+            self._modes[mode[0][1]] = False
+    
+    def hasMode(self, mode):
+        """ Return whether a channel has a mode """
+        if mode in self._modes:
+            return self._modes[mode]
+        else:
+            return False
+    
+    def addBan(self, mask):
+        self.bans.append(mask)
 
 class StateError(Exception):
     """ An exception raised if a state change would be impossible, generally suggesting we've gone out of sync """

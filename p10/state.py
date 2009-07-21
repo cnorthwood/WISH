@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import time
+
 class state:
     """ Holds the state for the current connection """
     
@@ -95,16 +97,33 @@ class state:
             return True
     
     def channelExists(self, name):
+        """ Returns if a channel exists or not """
         return name in self.channels
     
     def joinChannel(self, name, numeric, modes):
-        self.channels[name].join(numeric, modes)
+        """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
+        if self.channelExists(name):
+            self.channels[name].join(numeric, modes)
+        else:
+            self.createChannel(name, self.ts())
+            self.channels[name].join(numeric, list(set(modes + ["o"])))
     
     def changeChannelMode(self, name, mode):
-        self.channels[name].changeMode(mode)
+        """ Change the modes on a channel. Modes are tuples of the desired change (single modes only) and an optional argument, or None """
+        if self.channelExists(name):
+            self.channels[name].changeMode(mode)
+        else:
+            raise StateError("Attempted to change the modes on a channel that does not exist")
+    
+    def ts(self):
+        """ Returns our current timestamp """
+        return int(time.time())
     
     def addChannelBan(self, name, mask):
-        self.channels[name].addBan(mask)
+        if self.channelExists(name):
+            self.channels[name].addBan(mask)
+        else:
+            raise StateError("Attempted to add a ban to a channel that does not exist")
 
 class user:
     """ Represents a user internally """
@@ -188,12 +207,6 @@ class channel:
         """ Add a user to a channel """
         self.users[numeric] = modes
     
-    def isempty(self):
-        if len(self.users) == 0:
-            return False
-        else:
-            return True
-    
     def isop(self, numeric):
         """ Check if a user is op on a channel """
         return "o" in self.users[numeric]
@@ -208,13 +221,14 @@ class channel:
             self._modes[mode[0][1]] = False
     
     def hasMode(self, mode):
-        """ Return whether a channel has a mode """
+        """ Return whether a channel has a mode (and if it's something with an option, what it is) """
         if mode in self._modes:
             return self._modes[mode]
         else:
             return False
     
     def addBan(self, mask):
+        """ Adds a ban to the channel """
         self.bans.append(mask)
 
 class StateError(Exception):

@@ -166,6 +166,24 @@ class StateTest(unittest.TestCase):
         s.createChannel("#test", 6)
         s.addChannelBan("#test", "*!*@*.example.com")
         self.assertTrue("*!*@*.example.com" in s.channels["#test"].bans)
+    
+    def testAddChannelBanNonExistantChannel(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.addChannelBan, "#test", "*!*@*.example.com")
+        
+    def testJoinNonExistentChannel(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.joinChannel("#test", (1,1), [])
+        self.assertTrue(s.channelExists("#test"))
+        self.assertTrue((1,1) in s.channels["#test"].users)
+        self.assertTrue(s.channels["#test"].isop((1,1)))
+    
+    def testChangeModeNonExistantChannel(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.changeChannelMode, "#test", ("+o", None))
 
 def main():
     unittest.main()

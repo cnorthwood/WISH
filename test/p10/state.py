@@ -184,6 +184,88 @@ class StateTest(unittest.TestCase):
         c = ConnectionDouble()
         s = p10.state.state(c)
         self.assertRaises(p10.state.StateError, s.changeChannelMode, "#test", ("+o", None))
+    
+    def testUnban(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        s.addChannelBan("#test", "*!*@*.example.com")
+        self.assertEquals(["*!*@*.example.com"], s.channels["#test"].bans)
+        s.removeChannelBan("#test", "*!*@*.example.com")
+        self.assertEquals([], s.channels["#test"].bans)
+    
+    def testUnbanBadChan(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.removeChannelBan, "#test", ["*!*@*.example.com"])
+    
+    def testClearBans(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        s.addChannelBan("#test", "*!*@*.example.com")
+        s.clearChannelBans("#test")
+        self.assertEquals([], s.channels["#test"].bans)
+    
+    def testClearBansBadChan(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.clearChannelBans, "#test")
+    
+    def testClearOps(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.joinChannel("#test", (1,1), ["o"])
+        self.assertEquals([(1,1)], s.channels["#test"].ops())
+        s.clearChannelOps("#test")
+        self.assertEquals([], s.channels["#test"].ops())
+    
+    def testClearOpsBadChan(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.clearChannelOps, "#test")
+    
+    def testDeopBadChan(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertRaises(p10.state.StateError, s.deop, "#test", (1,1))
+    
+    def testDeopBadUser(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        self.assertRaises(p10.state.StateError, s.deop, "#test", (1,1))
+    
+    def testClearVoices(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.joinChannel("#test", (1,1), ["v"])
+        self.assertEquals([(1,1)], s.channels["#test"].voices())
+        s.clearChannelVoices("#test")
+        self.assertEquals([], s.channels["#test"].voices())
+    
+    def testClearVoicesBadChan(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        self.assertRaises(p10.state.StateError, s.clearChannelVoices, "#test")
+    
+    def testDevoiceBadChan(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertRaises(p10.state.StateError, s.devoice, "#test", (1,1))
+    
+    def testDevoiceBadUser(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.createChannel("#test", 6)
+        self.assertRaises(p10.state.StateError, s.devoice, "#test", (1,1))
+    
 
 def main():
     unittest.main()

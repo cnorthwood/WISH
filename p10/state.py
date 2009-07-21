@@ -124,6 +124,51 @@ class state:
             self.channels[name].addBan(mask)
         else:
             raise StateError("Attempted to add a ban to a channel that does not exist")
+    
+    def removeChannelBan(self, name, ban):
+        if self.channelExists(name):
+            self.channels[name].removeBan(ban)
+        else:
+            raise StateError("Attempted to remove a ban from a channel that does not exist")
+    
+    def clearChannelBans(self, name):
+        if self.channelExists(name):
+            for ban in self.channels[name].bans:
+                self.removeChannelBan(name, ban)
+        else:
+            raise StateError("Attempted to clear bans from a channel that does not exist")
+    
+    def deop(self, channel, user):
+        if self.channelExists(channel):
+            if self.channels[channel].isop(user):
+                self.channels[channel].deop(user)
+            else:
+                raise StateError('Attempted to deop a user that was not op on the channel')
+        else:
+            raise StateError('Attempted to deop from a channel that does not exist')
+    
+    def clearChannelOps(self, name):
+        if self.channelExists(name):
+            for op in self.channels[name].ops():
+                self.deop(name, op)
+        else:
+            raise StateError("Attempted to clear ops from a channel that does not exist")
+    
+    def devoice(self, channel, user):
+        if self.channelExists(channel):
+            if self.channels[channel].isvoice(user):
+                self.channels[channel].devoice(user)
+            else:
+                raise StateError('Attempted to devoice a user that was not op on the channel')
+        else:
+            raise StateError('Attempted to devoice from a channel that does not exist')
+    
+    def clearChannelVoices(self, name):
+        if self.channelExists(name):
+            for voice in self.channels[name].voices():
+                self.devoice(name, voice)
+        else:
+            raise StateError("Attempted to clear voices from a channel that does not exist")
 
 class user:
     """ Represents a user internally """
@@ -207,10 +252,6 @@ class channel:
         """ Add a user to a channel """
         self.users[numeric] = modes
     
-    def isop(self, numeric):
-        """ Check if a user is op on a channel """
-        return "o" in self.users[numeric]
-    
     def changeMode(self, mode):
         """ Change a single mode associated with this channel """
         if mode[0][0] == "+" and mode[1] == None:
@@ -230,6 +271,48 @@ class channel:
     def addBan(self, mask):
         """ Adds a ban to the channel """
         self.bans.append(mask)
+    
+    def removeBan(self, mask):
+        """ Removes a ban from the channel """
+        self.bans.remove(mask)
+    
+    def ison(self, numeric):
+        """ Returns whether a not a user is on a channel """
+        return numeric in self.users
+    
+    def isop(self, numeric):
+        """ Check if a user is op on a channel """
+        if self.ison(numeric):
+            return "o" in self.users[numeric]
+        else:
+            return False
+    
+    def ops(self):
+        ret = list()
+        for user in self.users:
+            if self.isop(user):
+                ret.append(user)
+        return ret
+    
+    def deop(self, numeric):
+        self.users[numeric].remove("o")
+    
+    def isvoice(self, numeric):
+        """ Check if a user is op on a channel """
+        if self.ison(numeric):
+            return "v" in self.users[numeric]
+        else:
+            return False
+    
+    def voices(self):
+        ret = list()
+        for user in self.users:
+            if self.isvoice(user):
+                ret.append(user)
+        return ret
+    
+    def devoice(self, numeric):
+        self.users[numeric].remove("v")
 
 class StateError(Exception):
     """ An exception raised if a state change would be impossible, generally suggesting we've gone out of sync """

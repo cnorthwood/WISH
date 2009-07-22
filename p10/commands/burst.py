@@ -18,9 +18,9 @@ class burst(genericcommand.genericcommand):
                     for mode in args[nextarg][1:]:
                         if mode == "k" or mode == "l":
                             nextarg = nextarg + 1
-                            self._state.changeChannelMode(args[0], (mode, args[nextarg]), False)
+                            self._state.changeChannelMode(args[0], (mode, args[nextarg]))
                         else:
-                            self._state.changeChannelMode(args[0], (mode, None), False)
+                            self._state.changeChannelMode(args[0], (mode, None))
                 nextarg = nextarg + 1
         
         # Handle users on the channel
@@ -29,13 +29,13 @@ class burst(genericcommand.genericcommand):
                 # Handle any user modes, but only if this is a new channel
                 user = user.split(":")
                 if len(user) > 1 and cstatus:
-                    self._state.joinChannel(args[0], p10.base64.parseNumeric(user[0]), user[1], False)
+                    self._state.joinChannel(args[0], p10.base64.parseNumeric(user[0]), user[1])
                 else:
-                    self._state.joinChannel(args[0], p10.base64.parseNumeric(user[0]), "", False)
+                    self._state.joinChannel(args[0], p10.base64.parseNumeric(user[0]), "")
             nextarg = nextarg + 1
         
         # Handle channel bans, but only if this is a new channel
         if len(args) > nextarg and cstatus:
             if args[nextarg][0] == "%":
                 for ban in args[nextarg][1:].split():
-                    self._state.addChannelBan(args[0], ban, False)
+                    self._state.addChannelBan(args[0], ban)

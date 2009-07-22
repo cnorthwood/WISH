@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import time
-import base64
 
 class state:
     """ Holds the state for the current connection """
@@ -15,12 +14,10 @@ class state:
         self.channels = dict()
         self._connection = connection
     
-    def authenticate(self, numeric, acname, local):
+    def authenticate(self, numeric, acname):
         """ Authenticate a user """
         if self.userExists(numeric):
             self.users[numeric].auth(acname)
-            if local:
-                self.sendLine(None, 'AC', [base64.createNumeric(numeric), acname])
         else:
             raise StateError("Authentication state change received for unknown user")
     
@@ -48,51 +45,32 @@ class state:
         """ Check if the user is known to us """
         return numeric in self.users
     
-    def newUser(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname, local):
+    def newUser(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         """ Change state to include a new user """
         if self.userExists(numeric):
             raise StateError("Numeric collision - attempting to create second user with numeric we already know")
         else:
             self.users[numeric] = user(numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)
-            if local:
-                newmodes = "+"
-                auxmodes = []
-                for mode in modes:
-                    if mode[0][0] == "+":
-                        newmodes = newmodes + mode[0][1]
-                        if mode[1] != None:
-                            auxmodes = auxmodes + [mode[1]]
-                line = [nickname, str(hops), str(ts), username, hostname]
-                if newmodes != "+":
-                    line = line + [newmodes] + auxmodes
-                line = line + [base64.toBase64(ip, 6), base64.createNumeric(numeric), fullname]
-                self.sendLine(None, "N", line)
     
-    def changeNick(self, numeric, newnick, newts, local):
+    def changeNick(self, numeric, newnick, newts):
         """ Change the nickname of a user on the network """
         if self.userExists(numeric):
             self.users[numeric].nickname = newnick
             self.users[numeric].ts = newts
-            if local:
-                self.sendLine(numeric[1], "N", [newnick, str(newts)])
         else:
             raise StateError('Nick change attempted for unknown user')
     
-    def setAway(self, numeric, reason, local):
+    def setAway(self, numeric, reason):
         if reason == "":
             raise StateError("Attempted to set an empty away reason")
         if self.userExists(numeric):
             self.users[numeric].away_reason = reason
-            if local:
-                self.sendLine(numeric[1], "A", [reason])
         else:
             raise StateError("Attempted to mark a user as away who does not exist")
     
-    def setBack(self, numeric, local):
+    def setBack(self, numeric):
         if self.userExists(numeric):
             self.users[numeric].away_reason = None
-            if local:
-                self.sendLine(numeric[1], "A", [])
         else:
             raise StateError("Attempted to mark a user as not away who does not exist")
     
@@ -112,7 +90,7 @@ class state:
                 oldusers = dict.keys(self.channels[name].users)
                 self.channels[name] = channel(name, ts)
                 for user in oldusers:
-                    self.joinChannel(name, user, [], False)
+                    self.joinChannel(name, user, [])
                 return True
         else:
             self.channels[name] = channel(name, ts)
@@ -122,19 +100,15 @@ class state:
         """ Returns if a channel exists or not """
         return name in self.channels
     
-    def joinChannel(self, name, numeric, modes, local):
+    def joinChannel(self, name, numeric, modes):
         """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
         if self.channelExists(name):
             self.channels[name].join(numeric, modes)
         else:
-            if local:
-                self.sendLine(numeric[1], "C", [name, str(self.ts())])
-                if len(modes) > 0:
-                    self.sendLine(None, "M", [name, "+" + modes, base64.createNumeric(numeric), str(self.ts())])
             self.createChannel(name, self.ts())
             self.channels[name].join(numeric, list(set(modes + ["o"])))
     
-    def changeChannelMode(self, name, mode, local):
+    def changeChannelMode(self, name, mode):
         """ Change the modes on a channel. Modes are tuples of the desired change (single modes only) and an optional argument, or None """
         if self.channelExists(name):
             self.channels[name].changeMode(mode)
@@ -145,26 +119,30 @@ class state:
         """ Returns our current timestamp """
         return int(time.time())
     
-    def addChannelBan(self, name, mask, local):
+    def addChannelBan(self, name, mask):
+        """ Adds a ban to the channel. """
         if self.channelExists(name):
             self.channels[name].addBan(mask)
         else:
             raise StateError("Attempted to add a ban to a channel that does not exist")
     
-    def removeChannelBan(self, name, ban, local):
+    def removeChannelBan(self, name, ban):
+        """ Removes a ban from the channel. """
         if self.channelExists(name):
             self.channels[name].removeBan(ban)
         else:
             raise StateError("Attempted to remove a ban from a channel that does not exist")
     
-    def clearChannelBans(self, name, local):
+    def clearChannelBans(self, name):
+        """ Clears all bans from the channel. """
         if self.channelExists(name):
             for ban in self.channels[name].bans:
-                self.removeChannelBan(name, ban, False)
+                self.removeChannelBan(name, ban)
         else:
             raise StateError("Attempted to clear bans from a channel that does not exist")
     
-    def deop(self, channel, user, local):
+    def deop(self, channel, user):
+        """ Deops a user from the channel. """
         if self.channelExists(channel):
             if self.channels[channel].isop(user):
                 self.channels[channel].deop(user)
@@ -173,14 +151,16 @@ class state:
         else:
             raise StateError('Attempted to deop from a channel that does not exist')
     
-    def clearChannelOps(self, name, local):
+    def clearChannelOps(self, name):
+        """ Clears all ops from the channel. """
         if self.channelExists(name):
             for op in self.channels[name].ops():
-                self.deop(name, op, False)
+                self.deop(name, op)
         else:
             raise StateError("Attempted to clear ops from a channel that does not exist")
     
-    def devoice(self, channel, user, local):
+    def devoice(self, channel, user):
+        """ Devoices a user from the channel. """
         if self.channelExists(channel):
             if self.channels[channel].isvoice(user):
                 self.channels[channel].devoice(user)
@@ -189,10 +169,11 @@ class state:
         else:
             raise StateError('Attempted to devoice from a channel that does not exist')
     
-    def clearChannelVoices(self, name, local):
+    def clearChannelVoices(self, name):
+        """ Clears all voices from the channel. """
         if self.channelExists(name):
             for voice in self.channels[name].voices():
-                self.devoice(name, voice, False)
+                self.devoice(name, voice)
         else:
             raise StateError("Attempted to clear voices from a channel that does not exist")
 

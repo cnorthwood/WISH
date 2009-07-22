@@ -16,16 +16,16 @@ class StateDouble:
         self.clearopscalled = False
         self.clearvoicescalled = False
     
-    def changeChannelMode(self, name, mode, local):
+    def changeChannelMode(self, name, mode):
         self.removed_modes.append(mode[0][1])
     
-    def clearChannelBans(self, name, local):
+    def clearChannelBans(self, name):
         self.clearbanscalled = True
     
-    def clearChannelOps(self, name, local):
+    def clearChannelOps(self, name):
         self.clearopscalled = True
     
-    def clearChannelVoices(self, name, local):
+    def clearChannelVoices(self, name):
         self.clearvoicescalled = True
 
 class ClearModeTest(unittest.TestCase):

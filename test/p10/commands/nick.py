@@ -12,9 +12,9 @@ class StateDouble:
     newuserip = 0
     newuserfullname = ""
     newnick = ""
-    def changeNick(self, numeric, newnick, local):
+    def changeNick(self, numeric, newnick):
         self.newnick = newnick
-    def newUser(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname, local):
+    def newUser(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         self.newusernumeric = numeric
         self.newusernick = nickname
         self.newuserusername = username

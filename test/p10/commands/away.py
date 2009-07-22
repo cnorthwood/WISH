@@ -6,11 +6,11 @@ import p10.commands.away
 class StateDouble:
     change = ""
     reason = ""
-    def setAway(self, numeric, reason, local):
+    def setAway(self, numeric, reason):
         self.change = "away"
         self.reason = reason
     
-    def setBack(self, numeric, local):
+    def setBack(self, numeric):
         self.change = "back"
         self.reason = ""
 

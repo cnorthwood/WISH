@@ -40,13 +40,13 @@ class Base64Test(unittest.TestCase):
         self.assertEqual((32, 127), p10.base64.parseNumeric('gAB]'))
     
     def testCreateBase64SingleChar(self):
-        self.assertEqual('A', p10.base64.toBase64(0))
-        self.assertEqual('a', p10.base64.toBase64(26))
+        self.assertEqual('A', p10.base64.toBase64(0, 0))
+        self.assertEqual('a', p10.base64.toBase64(26, 0))
     
     def testCreateBase64MultiChar(self):
-        self.assertEqual('BA', p10.base64.toBase64(64))
-        self.assertEqual('Ba', p10.base64.toBase64(90))
-        self.assertEqual('B]', p10.base64.toBase64(127))
+        self.assertEqual('BA', p10.base64.toBase64(64, 0))
+        self.assertEqual('Ba', p10.base64.toBase64(90, 0))
+        self.assertEqual('B]', p10.base64.toBase64(127, 0))
     
     def testCreateClientNumeric(self):
         self.assertEqual('B]BBa', p10.base64.createNumeric((127, 4186)))

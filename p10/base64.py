@@ -83,7 +83,7 @@ def toInt(chars):
         power = power + 1
     return accum
 
-def toBase64(num):
+def toBase64(num, pad):
     """ Convert a base-10 integer to a base-64 string """
     # Build a list of all the appropriate characters
     parts = list()
@@ -98,9 +98,13 @@ def toBase64(num):
     parts = ''.join(parts)
     if len(parts) > 1:
         # Trim the valueless characters off the front, apart from if the value is a literal 0
-        return parts.lstrip('A')
-    else:
-        return parts
+        parts = parts.lstrip('A')
+    
+    # Do padding
+    while len(parts) < pad:
+        parts = 'A' + parts
+    
+    return parts
 
 def parseNumeric(numeric):
     """ Take a numeric and return a tuple of integers, the first representing the server numeric, the second the client numeric.
@@ -124,21 +128,13 @@ def createNumeric((server, client)):
         This only generates extended (5 character) numerics for maximum compatibility """
     
     # Generate the server half
-    servernum = toBase64(server)
-    
-    # Pad to required length
-    while len(servernum) < 2:
-        servernum = "A" + servernum
+    servernum = toBase64(server, 2)
     
     # Handle server-only numerics
     clientnum = ""
     if client != None:
         # Generate client half
-        clientnum = toBase64(client)
-        
-        # Pad to correct length
-        while len(clientnum) < 3:
-            clientnum = "A" + clientnum
+        clientnum = toBase64(client, 3)
     
     return servernum + clientnum
 

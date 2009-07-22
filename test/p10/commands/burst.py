@@ -18,11 +18,11 @@ class StateDouble:
     def createChannel(self, name, ts):
         self.ts = ts
         return self.rv
-    def changeChannelMode(self, name, mode):
+    def changeChannelMode(self, name, mode, local):
         self.modes.append(mode)
-    def joinChannel(self, name, numeric, modes):
+    def joinChannel(self, name, numeric, modes, local):
         self.users.append((numeric, modes))
-    def addChannelBan(self, name, mask):
+    def addChannelBan(self, name, mask, local):
         self.bans.append(mask)
 
 class BurstTest(unittest.TestCase):

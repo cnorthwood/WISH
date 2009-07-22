@@ -12,4 +12,4 @@ class account(genericcommand.genericcommand):
         if (origin[1] != None):
             raise p10.parser.ProtocolError("ACCOUNT token received from non-server", " ".join(line))
         
-        self._state.authenticate(p10.base64.parseNumeric(line[0]), line[1])
+        self._state.authenticate(p10.base64.parseNumeric(line[0]), line[1], False)

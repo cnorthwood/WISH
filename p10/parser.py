@@ -75,9 +75,9 @@ class parser:
         
         # Check we're not sending things which are protocol violations
         if len(ret) > 512:
-            raise ProtocolError('Line too long to send', ret)
+            raise ProtocolError('Line too long to send')
         if not token.isupper():
-            raise ProtocolError('Command not in uppercase during build', ret)
+            raise ProtocolError('Command not in uppercase during build')
         
         # Pass the line to our handlers to maintain state
         try:
@@ -99,6 +99,6 @@ class ParseError(Exception):
     def __str__(self):
         return repr(self.value) + " on line " + self.line
 
-class ProtocolError(ParseError):
+class ProtocolError(Exception):
     """ An exception if a line is a protocol violation """
     pass

@@ -104,13 +104,13 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser()
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        self.assertRaises(p10.parser.ParseError, p.parse, ":testuser TEST baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar\r\n")
+        self.assertRaises(p10.parser.ProtocolError, p.parse, ":testuser TEST baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar\r\n")
     
     def testNoBuildLongLine(self):
         p = p10.parser.parser()
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        self.assertRaises(p10.parser.ParseError, p.build, (1,1), "TEST", ["baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar"])
+        self.assertRaises(p10.parser.ProtocolError, p.build, (1,1), "TEST", ["baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar"])
     
     def testParseFirstLongArg(self):
         p = p10.parser.parser()
@@ -129,12 +129,12 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser()
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        self.assertRaises(p10.parser.ParseError, p.parse, ":testuser test foo\r\n")
+        self.assertRaises(p10.parser.ProtocolError, p.parse, ":testuser test foo\r\n")
         
     def testNoLowercaseCommand(self):
         p = p10.parser.parser()
         d = CommandHandlerDouble()
-        self.assertRaises(p10.parser.ParseError, p.build, (1,1), "test", ["foo"])
+        self.assertRaises(p10.parser.ProtocolError, p.build, (1,1), "test", ["foo"])
     
     def testOriginSetCorrectly(self):
         p = p10.parser.parser()

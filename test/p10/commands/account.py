@@ -5,15 +5,10 @@ import p10.commands.account
 
 class StateDouble:
     numeric = None
-    def authenticate(self, numeric, acname):
+    def authenticate(self, origin, numeric, acname):
         self.numeric = numeric
 
 class AccountTest(unittest.TestCase):
-    
-    def testSourceMustBeServer(self):
-        s = StateDouble()
-        c = p10.commands.account.account(s)
-        self.assertRaises(p10.parser.ProtocolError, c.handle, (1, 1), ["ABAAB","Test"])
     
     def testPassToState(self):
         s = StateDouble()

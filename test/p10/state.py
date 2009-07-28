@@ -81,6 +81,7 @@ class StateTest(unittest.TestCase):
         s = p10.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertTrue(s.users[(1,1)].hasGlobalMode('o'))
+        self.assertFalse(s.users[(1,1)].hasGlobalMode('b'))
     
     def testCorrectModesWithArgs(self):
         c = ConnectionDouble()
@@ -161,6 +162,17 @@ class StateTest(unittest.TestCase):
         self.assertTrue(s.createChannel((1,1), "#test", 6))
         self.assertTrue(s.channelExists("#test"))
         self.assertFalse(s.channelExists("#example"))
+    
+    def testCreateChannelClashBothOp(self):
+        c = ConnectionDouble()
+        s = p10.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,8), "test2", "test2", "example.com", [("+o", None)], 0, 0, 0, "Test User 2")
+        self.assertTrue(s.createChannel((1,1), "#test", 6))
+        self.assertTrue(s.createChannel((1,8), "#test", 6))
+        self.assertTrue(s.channelExists("#test"))
+        self.assertTrue(s.channels["#test"].isop((1,1)))
+        self.assertTrue(s.channels["#test"].isop((1,8)))
     
     def testCreateChannelUserJoinsIt(self):
         c = ConnectionDouble()

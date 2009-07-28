@@ -112,8 +112,9 @@ class state:
                 # Our channel is older. Disregard.
                 if self.channels[name].ts < ts:
                     return False
-                # They're both the same!
+                # They're both the same, add new user as op
                 elif self.channels[name].ts == ts:
+                    self.channels[name].join(origin, ["o"])
                     return True
                 # Their channel is older, overrides ours and merge users
                 else:
@@ -361,7 +362,7 @@ class channel:
         self.users[numeric].remove("o")
     
     def isvoice(self, numeric):
-        """ Check if a user is op on a channel """
+        """ Check if a user is voice on a channel """
         if self.ison(numeric):
             return "v" in self.users[numeric]
         else:

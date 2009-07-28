@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import time
-import parser
+import p10.parser
 
 class state:
     """ Holds the state for the current connection """
@@ -50,7 +50,7 @@ class state:
                 else:
                     self.users[numeric] = user(numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)
             else:
-                raise parser.ProtocolError("Only servers can create users")
+                raise p10.parser.ProtocolError("Only servers can create users")
         else:
             raise StateError("A non-existant server tried to create a user")
     
@@ -84,7 +84,7 @@ class state:
             else:
                 raise StateError("Authentication from unknown server")
         else:
-            raise parser.ProtocolError("Only servers can change state")
+            raise p10.parser.ProtocolError("Only servers can change state")
     
     def getAccountName(self, numeric):
         """ Get the account name for a user. Blank if not authenticated. """

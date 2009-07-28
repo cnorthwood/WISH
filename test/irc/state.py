@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.state
+import irc.state
+import p10.parser
 
 class ConnectionDouble:
     numericID = 1
@@ -16,114 +17,114 @@ class StateTest(unittest.TestCase):
     
     def testAuthentication(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
         s.authenticate((1, None), (1,1), "Test")
         self.assertEqual("Test", s.getAccountName((1,1)))
     
     def testAuthenticationOnlyExistingUsers(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.authenticate, (1, None), (1,1), "Test")
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.authenticate, (1, None), (1,1), "Test")
     
     def testAuthenticationOnlyOnce(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
         s.authenticate((1, None), (1,1), "Test")
-        self.assertRaises(p10.state.StateError, s.authenticate, (1, None), (1,1), "Test2")
+        self.assertRaises(irc.state.StateError, s.authenticate, (1, None), (1,1), "Test2")
     
     def testAuthenticationSourceMustBeServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
         self.assertRaises(p10.parser.ProtocolError, s.authenticate, (1, 1), (1, 1), "Test")
         
     def testOnlyValidServerCanAuthUsers(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
-        self.assertRaises(p10.state.StateError, s.authenticate, (8, None), (1, 1), "Test")
+        self.assertRaises(irc.state.StateError, s.authenticate, (8, None), (1, 1), "Test")
     
     def testSendMessage(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.sendLine(2, "TEST", ['foo'])
         self.assertTrue(c.called)
     
     def testGetNumericID(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         self.assertEqual(1, s.getServerID())
     
     def testGetServerName(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         self.assertEqual("example.com", s.getServerName())
     
     def testGetServerAdmin(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         self.assertEqual("test", s.getAdminName())
     
     def testGetServerEmail(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         self.assertEqual("test@example.com", s.getContactEmail())
     
     def testOnlyServerCanCreateUser(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         self.assertRaises(p10.parser.ProtocolError, s.newUser, (1, 6), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
     
     def testCorrectModesOnCreation(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertTrue(s.users[(1,1)].hasGlobalMode('o'))
         self.assertFalse(s.users[(1,1)].hasGlobalMode('b'))
     
     def testCorrectModesWithArgs(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.users[(1,1)].changeMode(("+b","test"))
         self.assertEquals(s.users[(1,1)].hasGlobalMode('b'), "test")
     
     def testNegativeModesWithArgs(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+b", None)], 0, 0, 0, "Test User")
         s.users[(1,1)].changeMode(("-b",None))
         self.assertFalse(s.users[(1,1)].hasGlobalMode('b'))
     
     def testNewUserMustNotExist(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        self.assertRaises(p10.state.StateError, s.newUser, (1, None), (1,1), "test2", "test2", "example.com", [("+r", "Test")], 6, 0, 0, "Duplicate Test User")
+        self.assertRaises(irc.state.StateError, s.newUser, (1, None), (1,1), "test2", "test2", "example.com", [("+r", "Test")], 6, 0, 0, "Duplicate Test User")
     
     def testNewUserAuthenticatesCorrectly(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+r", "test")], 0, 0, 0, "Test User")
         self.assertEquals("test", s.users[(1,1)].account)
     
     def testChangeNick(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.changeNick((1,1), (1,1), "test2", 2)
         self.assertEquals(s.users[(1,1)].nickname, "test2")
     
     def testChangeNickUnknownUser(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.changeNick, (1,None), (1,1), "test2", 2)
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.changeNick, (1,None), (1,1), "test2", 2)
     
     def testMarkAway(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertFalse(s.users[(1,1)].isAway())
         s.setAway((1,1), "Away reason")
@@ -131,18 +132,18 @@ class StateTest(unittest.TestCase):
     
     def testMarkAwayNeedsParam(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        self.assertRaises(p10.state.StateError, s.setAway, (1,1), "")
+        self.assertRaises(irc.state.StateError, s.setAway, (1,1), "")
     
     def testMarkAwayNeedsExist(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.setAway, (1,1), "")
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.setAway, (1,1), "")
     
     def testMarkBack(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertFalse(s.users[(1,1)].isAway())
         s.setAway((1,1), "Away reason")
@@ -152,12 +153,12 @@ class StateTest(unittest.TestCase):
     
     def testMarkBackNeedsExist(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.setBack, (1,1))
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.setBack, (1,1))
     
     def testCreateChannel(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertTrue(s.createChannel((1,1), "#test", 6))
         self.assertTrue(s.channelExists("#test"))
@@ -165,7 +166,7 @@ class StateTest(unittest.TestCase):
     
     def testCreateChannelClashBothOp(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.newUser((1, None), (1,8), "test2", "test2", "example.com", [("+o", None)], 0, 0, 0, "Test User 2")
         self.assertTrue(s.createChannel((1,1), "#test", 6))
@@ -176,7 +177,7 @@ class StateTest(unittest.TestCase):
     
     def testCreateChannelUserJoinsIt(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         self.assertTrue(s.createChannel((1,1), "#test", 6))
         self.assertTrue(s.channelExists("#test"))
@@ -184,21 +185,21 @@ class StateTest(unittest.TestCase):
     
     def testCreateChannelMustBeValidUser(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.createChannel, (1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.createChannel, (1,None), "#test", 6)
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.createChannel, (1,1), "#test", 6)
+        self.assertRaises(irc.state.StateError, s.createChannel, (1,None), "#test", 6)
         self.assertFalse(s.channelExists("#test"))
     
     def testChannelJoinerMustExist(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.joinChannel, (1,8), "#test", [])
+        self.assertRaises(irc.state.StateError, s.joinChannel, (1,8), "#test", [])
     
     def testReplaceChannel(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
         self.assertTrue(s.createChannel((1,1), "#test", 6))
@@ -210,7 +211,7 @@ class StateTest(unittest.TestCase):
     
     def testSetChannelModes(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         self.assertFalse(s.channels["#test"].hasMode("p"))
@@ -219,7 +220,7 @@ class StateTest(unittest.TestCase):
     
     def testSetChannelModesWithArgs(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         self.assertFalse(s.channels["#test"].hasMode("l"))
@@ -228,15 +229,15 @@ class StateTest(unittest.TestCase):
     
     def testChannelModeChangerMustExistOrServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.changeChannelMode, (1,8), "#test", ("+l", "26"))
-        self.assertRaises(p10.state.StateError, s.changeChannelMode, (4, None), "#test", ("+l", "26"))
+        self.assertRaises(irc.state.StateError, s.changeChannelMode, (1,8), "#test", ("+l", "26"))
+        self.assertRaises(irc.state.StateError, s.changeChannelMode, (4, None), "#test", ("+l", "26"))
     
     def testAddChannelBan(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         s.addChannelBan((1, 1), "#test", "*!*@*.example.com")
@@ -244,20 +245,20 @@ class StateTest(unittest.TestCase):
     
     def testAddChannelBanNonExistantChannel(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.addChannelBan, (1,None), "#test", "*!*@*.example.com")
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.addChannelBan, (1,None), "#test", "*!*@*.example.com")
     
     def testChannelBannerMustExistOrServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.addChannelBan, (1,8), "#test", "*!*@*.example.com")
-        self.assertRaises(p10.state.StateError, s.addChannelBan, (4, None), "#test", "*!*@*.example.com")
+        self.assertRaises(irc.state.StateError, s.addChannelBan, (1,8), "#test", "*!*@*.example.com")
+        self.assertRaises(irc.state.StateError, s.addChannelBan, (4, None), "#test", "*!*@*.example.com")
         
     def testJoinNonExistentChannel(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.joinChannel((1,1), "#test", [])
         self.assertTrue(s.channelExists("#test"))
@@ -266,12 +267,12 @@ class StateTest(unittest.TestCase):
     
     def testChangeModeNonExistantChannel(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.changeChannelMode, (1,1), "#test", ("+o", None))
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.changeChannelMode, (1,1), "#test", ("+o", None))
     
     def testUnban(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         s.addChannelBan((1, 1), "#test", "*!*@*.example.com")
@@ -281,12 +282,12 @@ class StateTest(unittest.TestCase):
     
     def testUnbanBadChan(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.removeChannelBan, (1, 1), "#test", ["*!*@*.example.com"])
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.removeChannelBan, (1, 1), "#test", ["*!*@*.example.com"])
     
     def testClearBans(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         s.addChannelBan((1, 1), "#test", "*!*@*.example.com")
@@ -295,28 +296,28 @@ class StateTest(unittest.TestCase):
     
     def testClearBansBadChan(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.clearChannelBans,( 1, 1), "#test")
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.clearChannelBans,( 1, 1), "#test")
     
     def testChannelBanRemoverMustExistOrServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.removeChannelBan, (1,8), "#test", "*!*@*.example.com")
-        self.assertRaises(p10.state.StateError, s.removeChannelBan, (4, None), "#test", "*!*@*.example.com")
+        self.assertRaises(irc.state.StateError, s.removeChannelBan, (1,8), "#test", "*!*@*.example.com")
+        self.assertRaises(irc.state.StateError, s.removeChannelBan, (4, None), "#test", "*!*@*.example.com")
     
     def testChannelBanClearerMustExistOrServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.clearChannelBans, (1,8), "#test")
-        self.assertRaises(p10.state.StateError, s.clearChannelBans, (4, None), "#test")
+        self.assertRaises(irc.state.StateError, s.clearChannelBans, (1,8), "#test")
+        self.assertRaises(irc.state.StateError, s.clearChannelBans, (4, None), "#test")
     
     def testClearOps(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1,None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
         self.assertEquals([(1,1)], s.channels["#test"].ops())
@@ -325,33 +326,33 @@ class StateTest(unittest.TestCase):
     
     def testChannelOpClearerMustExistOrServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.clearChannelOps, (1,8), "#test")
-        self.assertRaises(p10.state.StateError, s.clearChannelOps, (4, None), "#test")
+        self.assertRaises(irc.state.StateError, s.clearChannelOps, (1,8), "#test")
+        self.assertRaises(irc.state.StateError, s.clearChannelOps, (4, None), "#test")
     
     def testClearOpsBadChan(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.clearChannelOps, (1, 1), "#test")
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.clearChannelOps, (1, 1), "#test")
     
     def testDeopBadChan(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1,None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        self.assertRaises(p10.state.StateError, s.deop, (1,1), "#test", (1,1))
+        self.assertRaises(irc.state.StateError, s.deop, (1,1), "#test", (1,1))
     
     def testDeopBadUser(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1,None),(1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.deop, (1,1), "#test", (1,6))
+        self.assertRaises(irc.state.StateError, s.deop, (1,1), "#test", (1,6))
     
     def testClearVoices(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         s.joinChannel((1,1), "#test", ["v"])
@@ -361,51 +362,51 @@ class StateTest(unittest.TestCase):
     
     def testChannelVoiceClearerMustExistOrServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.clearChannelVoices, (1,8), "#test")
-        self.assertRaises(p10.state.StateError, s.clearChannelVoices, (4, None), "#test")
+        self.assertRaises(irc.state.StateError, s.clearChannelVoices, (1,8), "#test")
+        self.assertRaises(irc.state.StateError, s.clearChannelVoices, (4, None), "#test")
     
     def testClearVoicesBadChan(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.clearChannelVoices, (1,1), "#test")
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.clearChannelVoices, (1,1), "#test")
     
     def testDevoiceBadChan(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1,None),(1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        self.assertRaises(p10.state.StateError, s.devoice, (1,1), "#test", (1,1))
+        self.assertRaises(irc.state.StateError, s.devoice, (1,1), "#test", (1,1))
     
     def testDevoiceBadUser(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newUser((1,None),(1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(p10.state.StateError, s.devoice, (1,1), "#test", (1,1))
+        self.assertRaises(irc.state.StateError, s.devoice, (1,1), "#test", (1,1))
     
     def testNewServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newServer((1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
         self.assertTrue(s.serverExists(2))
     
     def testNoDuplicateServer(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         s.newServer((1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
-        self.assertRaises(p10.state.StateError, s.newServer, (1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+        self.assertRaises(irc.state.StateError, s.newServer, (1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
     
     def testCurrentServerAlwaysExists(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
+        s = irc.state.state(c)
         self.assertTrue(s.serverExists(1))
     
     def testOnlyValidServerCanCreateUsers(self):
         c = ConnectionDouble()
-        s = p10.state.state(c)
-        self.assertRaises(p10.state.StateError, s.newUser, (8, None), (1,1), "test", "test", "example.com", [("+b", None)], 0, 0, 0, "Test User")
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.newUser, (8, None), (1,1), "test", "test", "example.com", [("+b", None)], 0, 0, 0, "Test User")
 
 def main():
     unittest.main()

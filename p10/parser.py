@@ -21,9 +21,8 @@ class parser:
         except KeyError:
             raise ParseError("Unknown command", None)
     
-    def parse(self, string):
-        """ Take a string, parse it into our internal form and pass it on """
-        
+    def _checkLineIsGood(self, string):
+        """ Check the raw line meets our various standards, tidy it up and return it """
         # The standard requires we only accept strings ending in \r\n or \n
         if (string[-1] != "\n"):
             raise ParseError('Line endings were not as expected', string)
@@ -33,17 +32,10 @@ class parser:
             raise ProtocolError('Line too long to be valid', string)
         
         # Trim our trailing whitespace/line endings
-        string = string.rstrip()
-        
-        # Break up into origin, token and body
-        high_level_parts = string.split(None, 2)
-        origin = base64.parseNumeric(high_level_parts[0])
-        command = high_level_parts[1]
-        if not command.isupper():
-            raise ProtocolError('Command not in uppercase', string)
-        params = high_level_parts[2]
-        
-        # Further break up our body into individual parameters
+        return string.rstrip()
+    
+    def _parseParams(self, params):
+        """ Further break up our body into individual parameters """
         if params[0] == ":":
             params = [params[1:]]
         else:
@@ -55,6 +47,39 @@ class parser:
             params = params[0].split(None)
             if last_arg != None:
                 params.append(last_arg)
+        return params
+    
+    def parsePreAuth(self, string):
+        """ Parse strings before authentication is established """
+        # Tidy up our line
+        string = self._checkLineIsGood(string)
+        
+        # Break up into token and body
+        high_level_parts = string.split(None, 1)
+        origin = None
+        command = high_level_parts[0]
+        if not command.isupper():
+            raise ProtocolError('Command not in uppercase', string)
+        params = self._parseParams(high_level_parts[1])
+        
+        # If this is an invalid command, pass it upwards
+        try:
+            self._passToHandler(origin, command, params)
+        except ParseError, error:
+            raise ParseError(error.value, string)
+    
+    def parse(self, string):
+        """ Take a string, parse it into our internal form and pass it on """
+        # Tidy up our line
+        string = self._checkLineIsGood(string)
+        
+        # Break up into origin, token and body
+        high_level_parts = string.split(None, 2)
+        origin = base64.parseNumeric(high_level_parts[0])
+        command = high_level_parts[1]
+        if not command.isupper():
+            raise ProtocolError('Command not in uppercase', string)
+        params = self._parseParams(high_level_parts[2])
         
         # If this is an invalid command, pass it upwards
         try:
@@ -71,19 +96,14 @@ class parser:
         else:
             build_args = args
         # Build the line
-        ret = base64.createNumeric(origin) + " " + token + " " + " ".join(build_args) + "\r\n"
+        # Future compatibility - only send \n
+        ret = base64.createNumeric(origin) + " " + token + " " + " ".join(build_args) + "\n"
         
         # Check we're not sending things which are protocol violations
         if len(ret) > 512:
             raise ProtocolError('Line too long to send')
         if not token.isupper():
             raise ProtocolError('Command not in uppercase during build')
-        
-        # Pass the line to our handlers to maintain state
-        try:
-            self._passToHandler(origin, token, args)
-        except ParseError, error:
-            raise ParseError(error.value, ret)
         
         return ret
 

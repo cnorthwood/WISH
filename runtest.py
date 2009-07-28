@@ -2,10 +2,10 @@
 
 import sys
 import unittest
+from test.irc.state import *
 from test.p10.base64 import *
 from test.p10.connection import *
 from test.p10.parser import *
-from test.p10.state import *
 from test.p10.commands.account import *
 from test.p10.commands.admin import *
 from test.p10.commands.asll import *

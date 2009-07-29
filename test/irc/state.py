@@ -408,6 +408,25 @@ class StateTest(unittest.TestCase):
         c = ConfigDouble()
         s = irc.state.state(c)
         self.assertRaises(irc.state.StateError, s.newUser, (8, None), (1,1), "test", "test", "example.com", [("+b", None)], 0, 0, 0, "Test User")
+    
+    def testAddGline(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+        s.addGline((1, 1), "*!foo@bar.com", s.ts() + 3600, "A test g-line")
+        self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
+    
+    def testIsGlinedMaskCheck(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.addGline((1, 1), "*!foo@bar.com", s.ts() + 3600, "A test g-line")
+        self.assertNotEquals(None, s.isGlined("test!foo@bar.com"))
+    
+    def testGlinesExpire(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.addGline((1, 1), "*!foo@bar.com", s.ts() - 3600, "A test g-line")
+        self.assertEquals(None, s.isGlined("test!foo@bar.com"))
 
 def main():
     unittest.main()

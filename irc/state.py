@@ -13,12 +13,14 @@ class state:
     users = dict()
     channels = dict()
     _servers = dict()
+    _glines = dict()
     
     def __init__(self, config):
         self.users = dict()
         self.channels = dict()
         self._config = config
         self._servers = dict({self.getServerID(): self.getServerName()})
+        self._glines = dict()
     
     def sendLine(self, client, command, args):
         """ Send a line """
@@ -252,6 +254,35 @@ class state:
                 raise StateError("Attempted to clear voices from a channel that does not exist")
         else:
             raise StateError("An invalid entity attempted to clear channel voices")
+    
+    def _cleanupGlines(self):
+        """ Remove expired g-lines """
+        # Make shallow copy of dictionary so we can modify it during iteration
+        for gline in self._glines.copy():
+            # Remove expired g-lines
+            if self._glines[gline][1] < self.ts():
+                del self._glines[gline]
+    
+    def addGline(self, origin, mask, expires, description):
+        """ Add a g-line """
+        self._glines[mask] = (description, expires)
+    
+    def isGlined(self, host):
+        """ Check if someone is g-lined """
+        self._cleanupGlines()
+        for mask in self._glines:
+            if fnmatch.fnmatch(host, mask):
+                return self._glines[mask]
+            else:
+                return None
+    
+    def removeGline(self, origin, mask):
+        """ Remove a gline """
+        # Make shallow copy of dictionary so we can modify it during iteration
+        for gline in self._glines.copy():
+            # Remove any g-lines that match that mask
+            if fnmatch.fnmatch(mask, gline):
+                del self._glines[gline]
 
 class user:
     """ Represents a user internally """

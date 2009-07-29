@@ -400,6 +400,16 @@ class StateTest(unittest.TestCase):
         s.newServer((1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
         self.assertRaises(irc.state.StateError, s.newServer, (1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
     
+    def testOnlyServerCanIntroduceServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertRaises(p10.parser.ProtocolError, s.newServer, (1, 8), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+    
+    def testOnlyExistingServerCanIntroduceServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.newServer, (177, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+    
     def testCurrentServerAlwaysExists(self):
         c = ConfigDouble()
         s = irc.state.state(c)

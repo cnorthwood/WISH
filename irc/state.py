@@ -20,7 +20,8 @@ class state:
         self.users = dict()
         self.channels = dict()
         self._config = config
-        self._servers = dict({self.getServerID(): self.getServerName()})
+        self._servers = dict()
+        self._servers[self.getServerID()] = server(None, self.getServerID(), self.getServerName(), 262143, self.ts(), self.ts(), "P10", 0, [], "WISH on " + self.getServerName())
         self.maxClientNumerics = dict({self.getServerID(): 262143})
         self._glines = dict()
     
@@ -74,9 +75,16 @@ class state:
         # We disregard most of the arguments, because, tbh, we don't care about them
         if self.serverExists(numeric):
             raise StateError("Attempted to add a duplicate server")
+        elif origin[1] != None:
+            raise p10.parser.ProtocolError("User attempted to add a server")
         else:
-            self._servers[numeric] = name
+            uplink = origin[0]
+            self._servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
             self.maxClientNumerics[numeric] = maxclient
+            if self.serverExists(uplink):
+                self._servers[uplink].children.append(numeric)
+            else:
+                raise StateError("Unknown server introduced a new server")
     
     def changeNick(self, origin, numeric, newnick, newts):
         """ Change the nickname of a user on the network """
@@ -432,6 +440,33 @@ class channel:
     
     def devoice(self, numeric):
         self.users[numeric].remove("v")
+
+class server:
+    """ Internally represent a server """
+    numeric = 0
+    origin = None
+    name = ""
+    maxclient = 0
+    boot_ts = 0
+    link_ts = 0
+    protocol = ""
+    hops = 0
+    flags = []
+    description = ""
+    children = []
+    
+    def __init__(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
+        self.numeric = numeric
+        self.origin = origin
+        self.name = name
+        self.maxclient = maxclient
+        self.boot_ts = boot_ts
+        self.link_ts = link_ts
+        self.protocol = protocol
+        self.hops = hops
+        self.flags = flags
+        self.description = description
+        self.children = []
 
 class StateError(Exception):
     """ An exception raised if a state change would be impossible, generally suggesting we've gone out of sync """

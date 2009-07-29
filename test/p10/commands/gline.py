@@ -10,10 +10,12 @@ class StateDouble:
         self.rv = None
     def ts(self):
         return 1
-    def addGline(self, origin, mask, expires, description):
+    def addGline(self, origin, mask, target, expires, description):
         self.rv = ('add', mask, expires)
-    def removeGline(self, origin, mask):
+    def removeGline(self, origin, mask, target):
         self.rv = ('del', mask)
+    def getServerID(self):
+        return 1
 
 class GlineTest(unittest.TestCase):
     

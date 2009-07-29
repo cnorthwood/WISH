@@ -413,20 +413,70 @@ class StateTest(unittest.TestCase):
         c = ConfigDouble()
         s = irc.state.state(c)
         self.assertEquals(None, s.isGlined("*!foo@bar.com"))
-        s.addGline((1, 1), "*!foo@bar.com", s.ts() + 3600, "A test g-line")
+        s.addGline((1, 1), "*!foo@bar.com", None, s.ts() + 3600, "A test g-line")
         self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
     
     def testIsGlinedMaskCheck(self):
         c = ConfigDouble()
         s = irc.state.state(c)
-        s.addGline((1, 1), "*!foo@bar.com", s.ts() + 3600, "A test g-line")
+        s.addGline((1, 1), "*!foo@bar.com", None, s.ts() + 3600, "A test g-line")
         self.assertNotEquals(None, s.isGlined("test!foo@bar.com"))
     
     def testGlinesExpire(self):
         c = ConfigDouble()
         s = irc.state.state(c)
-        s.addGline((1, 1), "*!foo@bar.com", s.ts() - 3600, "A test g-line")
+        s.addGline((1, 1), "*!foo@bar.com", None, s.ts() - 3600, "A test g-line")
         self.assertEquals(None, s.isGlined("test!foo@bar.com"))
+    
+    def testRemoveGline(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+        s.addGline((1, 1), "*!foo@bar.com", None, s.ts() + 3600, "A test g-line")
+        self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
+        s.removeGline((1, 1), "*!foo@bar.com", None)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+    
+    def testRemoveGlineMask(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+        s.addGline((1, 1), "*!foo@bar.com", None, s.ts() + 3600, "A test g-line")
+        self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
+        s.removeGline((1, 1), "*!*@bar.com", None)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+    
+    def testAddGlineSpecificTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+        s.addGline((1, 1), "*!foo@bar.com", 1, s.ts() + 3600, "A test g-line")
+        self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
+    
+    def testAddGlineNotSpecificTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+        s.addGline((1, 1), "*!foo@bar.com", 8, s.ts() + 3600, "A test g-line")
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+    
+    def testRemoveGlineSpecificTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+        s.addGline((1, 1), "*!foo@bar.com", 1, s.ts() + 3600, "A test g-line")
+        self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
+        s.removeGline((1, 1), "*!foo@bar.com", 1)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+    
+    def testRemoveGlineNotSpecificTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isGlined("*!foo@bar.com"))
+        s.addGline((1, 1), "*!foo@bar.com", 1, s.ts() + 3600, "A test g-line")
+        self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
+        s.removeGline((1, 1), "*!foo@bar.com", 8)
+        self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
 
 def main():
     unittest.main()

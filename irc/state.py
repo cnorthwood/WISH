@@ -263,9 +263,10 @@ class state:
             if self._glines[gline][1] < self.ts():
                 del self._glines[gline]
     
-    def addGline(self, origin, mask, expires, description):
+    def addGline(self, origin, mask, target, expires, description):
         """ Add a g-line """
-        self._glines[mask] = (description, expires)
+        if target == None or target == self.getServerID():
+            self._glines[mask] = (description, expires)
     
     def isGlined(self, host):
         """ Check if someone is g-lined """
@@ -276,13 +277,14 @@ class state:
             else:
                 return None
     
-    def removeGline(self, origin, mask):
+    def removeGline(self, origin, mask, target):
         """ Remove a gline """
-        # Make shallow copy of dictionary so we can modify it during iteration
-        for gline in self._glines.copy():
-            # Remove any g-lines that match that mask
-            if fnmatch.fnmatch(mask, gline):
-                del self._glines[gline]
+        if target == None or target == self.getServerID():
+            # Make shallow copy of dictionary so we can modify it during iteration
+            for gline in self._glines.copy():
+                # Remove any g-lines that match that mask
+                if fnmatch.fnmatch(gline, mask):
+                    del self._glines[gline]
 
 class user:
     """ Represents a user internally """

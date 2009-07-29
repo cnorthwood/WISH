@@ -3,35 +3,41 @@
 import time
 import p10.parser
 
+# IRC masks are very similar to UNIX filename pattern matching, so we can cheat and use the same algorithm
+import fnmatch
+
 class state:
     """ Holds the state for the current connection """
     
-    _connection = None
+    _config = None
     users = dict()
     channels = dict()
     _servers = dict()
     
-    def __init__(self, connection):
+    def __init__(self, config):
         self.users = dict()
         self.channels = dict()
-        self._connection = connection
+        self._config = config
         self._servers = dict({self.getServerID(): self.getServerName()})
     
     def sendLine(self, client, command, args):
         """ Send a line """
-        self._connection.sendLine(client, command, args)
+        #
+        # TODO: This needs to be completely rewritten to deal with the better connection design that will be introduced later
+        #
+        self._config.sendLine(client, command, args)
     
     def getServerID(self):
-        return self._connection.numericID
+        return self._config.numericID
     
     def getServerName(self):
-        return self._connection.serverName
+        return self._config.serverName
     
     def getAdminName(self):
-        return self._connection.adminNick
+        return self._config.adminNick
     
     def getContactEmail(self):
-        return self._connection.contactEmail
+        return self._config.contactEmail
     
     def ts(self):
         """ Returns our current timestamp """
@@ -43,6 +49,7 @@ class state:
     
     def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         """ Change state to include a new user """
+        # TODO: Do we have a name clash?
         if self.serverExists(origin[0]):
             if origin[1] == None:
                 if self.userExists(numeric):
@@ -59,6 +66,7 @@ class state:
     
     def newServer(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
         """ Add a new server """
+        # TODO: More stringent checks - do we have a name clash?
         # We disregard most of the arguments, because, tbh, we don't care about them
         if self.serverExists(numeric):
             raise StateError("Attempted to add a duplicate server")
@@ -67,6 +75,7 @@ class state:
     
     def changeNick(self, origin, numeric, newnick, newts):
         """ Change the nickname of a user on the network """
+        # TODO: More stringent checks on new nickname, i.e., is it valid/already in use?
         if self.userExists(numeric):
             self.users[numeric].nickname = newnick
             self.users[numeric].ts = newts
@@ -106,6 +115,7 @@ class state:
     
     def createChannel(self, origin, name, ts):
         """ Create a channel. Returns false if the new channel is invalid (i.e., is newer than one already known about) """
+        # TODO: More stringent checks on whether or not this channel can be created (i.e., is badchan'd or juped)
         if self.userExists(origin):
             # Channel already exists
             if name in self.channels:
@@ -137,6 +147,7 @@ class state:
     
     def joinChannel(self, origin, name, modes):
         """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
+        # TODO: More stringent checks on whether or not this user is allowed to join this channel
         if self.userExists(origin):
             if self.channelExists(name):
                 self.channels[name].join(origin, modes)
@@ -147,6 +158,7 @@ class state:
     
     def changeChannelMode(self, origin, name, mode):
         """ Change the modes on a channel. Modes are tuples of the desired change (single modes only) and an optional argument, or None """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(name):
                 self.channels[name].changeMode(mode)
@@ -157,6 +169,7 @@ class state:
     
     def addChannelBan(self, origin, name, mask):
         """ Adds a ban to the channel. """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(name):
                 self.channels[name].addBan(mask)
@@ -167,6 +180,7 @@ class state:
     
     def removeChannelBan(self, origin, name, ban):
         """ Removes a ban from the channel. """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(name):
                 self.channels[name].removeBan(ban)
@@ -177,6 +191,7 @@ class state:
     
     def clearChannelBans(self, origin, name):
         """ Clears all bans from the channel. """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(name):
                 for ban in self.channels[name].bans:
@@ -188,6 +203,7 @@ class state:
     
     def deop(self, origin, channel, user):
         """ Deops a user from the channel. """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(channel):
                 if self.channels[channel].isop(user):
@@ -201,6 +217,7 @@ class state:
     
     def clearChannelOps(self, origin, name):
         """ Clears all ops from the channel. """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(name):
                 for op in self.channels[name].ops():
@@ -212,6 +229,7 @@ class state:
     
     def devoice(self, origin, channel, user):
         """ Devoices a user from the channel. """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(channel):
                 if self.channels[channel].isvoice(user):
@@ -225,6 +243,7 @@ class state:
     
     def clearChannelVoices(self, origin, name):
         """ Clears all voices from the channel. """
+        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
             if self.channelExists(name):
                 for voice in self.channels[name].voices():

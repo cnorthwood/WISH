@@ -4,7 +4,7 @@ import p10.base64
 import genericcommand
 
 class admin(genericcommand.genericcommand):
-    """ Returns the administrative information for the server """
+    """ Returns information about the server """
     
     def handle(self, origin, args):
         if p10.base64.parseNumeric(args[0]) == (self._state.getServerID(), None):

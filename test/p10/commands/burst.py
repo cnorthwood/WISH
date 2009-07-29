@@ -9,6 +9,7 @@ class StateDouble:
     users = []
     ts = 0
     bans = []
+    maxClientNumerics = dict({1: 262143})
     def __init__(self):
         self.rv = True
         self.modes = []

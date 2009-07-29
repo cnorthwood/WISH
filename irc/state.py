@@ -13,6 +13,7 @@ class state:
     users = dict()
     channels = dict()
     _servers = dict()
+    maxClientNumerics = dict()
     _glines = dict()
     
     def __init__(self, config):
@@ -20,6 +21,7 @@ class state:
         self.channels = dict()
         self._config = config
         self._servers = dict({self.getServerID(): self.getServerName()})
+        self.maxClientNumerics = dict({self.getServerID(): 262143})
         self._glines = dict()
     
     def sendLine(self, client, command, args):
@@ -74,6 +76,7 @@ class state:
             raise StateError("Attempted to add a duplicate server")
         else:
             self._servers[numeric] = name
+            self.maxClientNumerics[numeric] = maxclient
     
     def changeNick(self, origin, numeric, newnick, newts):
         """ Change the nickname of a user on the network """

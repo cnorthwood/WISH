@@ -106,22 +106,26 @@ def toBase64(num, pad):
     
     return parts
 
-def parseNumeric(numeric):
+def parseNumeric(numeric, maxclient):
     """ Take a numeric and return a tuple of integers, the first representing the server numeric, the second the client numeric.
-        If the numeric is server-only, then the second element in the pair is set to None """
+        If the numeric is server-only, then the second element in the pair is set to None
+        The maxclient is used to return unique numerics """
     
     # Short and extended server only numerics
     if len(numeric) == 1 or len(numeric) == 2:
         return (toInt(numeric), None)
     # Short server/client numerics
     elif len(numeric) == 3:
-        return (toInt(numeric[0]), toInt(numeric[1:3]))
+        server = toInt(numeric[0])
+        return (server, toInt(numeric[1:3]) & maxclient[server])
     # Universal IRCU server/client numerics
     elif len(numeric) == 4:
-        return (toInt(numeric[0]), toInt(numeric[1:4]))
+        server = toInt(numeric[0])
+        return (server, toInt(numeric[1:4]) & maxclient[server])
     # Extended server/client numerics
     elif len(numeric) == 5:
-        return (toInt(numeric[0:2]), toInt(numeric[2:5]))
+        server = toInt(numeric[0:2])
+        return (server, toInt(numeric[2:5]) & maxclient[server])
 
 def createNumeric((server, client)):
     """ Create a numeric from a pair of integers - with the first representing the server numeric, the second the client.

@@ -5,6 +5,7 @@ import p10.commands.admin
 
 class StateDouble:
     numerics = []
+    maxClientNumerics = dict({1: 262143})
     
     def __init__(self):
         self.numerics = []

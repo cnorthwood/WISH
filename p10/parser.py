@@ -6,9 +6,11 @@ class parser:
     """ Takes a raw line from the connection, tokenises it and then passes it on to an appropriate handler """
     
     _handlers = dict()
+    _maxclientnum = 0
     
-    def __init__(self):
+    def __init__(self, maxclientnum):
         self._handlers = dict()
+        self._maxclientnum = maxclientnum
     
     def registerHandler(self, token, handler):
         """ Add a new handler for a particular token """
@@ -75,7 +77,7 @@ class parser:
         
         # Break up into origin, token and body
         high_level_parts = string.split(None, 2)
-        origin = base64.parseNumeric(high_level_parts[0])
+        origin = base64.parseNumeric(high_level_parts[0], self._maxclientnum)
         command = high_level_parts[1]
         if not command.isupper():
             raise ProtocolError('Command not in uppercase', string)

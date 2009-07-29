@@ -20,24 +20,24 @@ class Base64Test(unittest.TestCase):
         self.assertEqual(127, p10.base64.toInt('B]'))
     
     def testExtendedClientNumericParse(self):
-        self.assertEqual((0, 0), p10.base64.parseNumeric('AAAAA'))
-        self.assertEqual((127, 90), p10.base64.parseNumeric('B]ABa'))
+        self.assertEqual((0, 0), p10.base64.parseNumeric('AAAAA', dict({0: 262143})))
+        self.assertEqual((127, 90), p10.base64.parseNumeric('B]ABa', dict({127: 262143})))
     
     def testExtendedServerNumericParse(self):
-        self.assertEqual((0, None), p10.base64.parseNumeric('AA'))
-        self.assertEqual((127, None), p10.base64.parseNumeric('B]'))
+        self.assertEqual((0, None), p10.base64.parseNumeric('AA', dict({0: 262143})))
+        self.assertEqual((127, None), p10.base64.parseNumeric('B]', dict({127: 262143})))
     
     def testShortClientNumericParse(self):
-        self.assertEqual((0, 0), p10.base64.parseNumeric('AAA'))
-        self.assertEqual((2, 90), p10.base64.parseNumeric('CBa'))
+        self.assertEqual((0, 0), p10.base64.parseNumeric('AAA', dict({0: 262143})))
+        self.assertEqual((2, 90), p10.base64.parseNumeric('CBa', dict({2: 262143})))
     
     def testShortServerNumericParse(self):
-        self.assertEqual((0, None), p10.base64.parseNumeric('A'))
-        self.assertEqual((32, None), p10.base64.parseNumeric('g'))
+        self.assertEqual((0, None), p10.base64.parseNumeric('A', dict({0: 262143})))
+        self.assertEqual((32, None), p10.base64.parseNumeric('g', dict({32: 262143})))
     
     def testUniversalIRCUNumericParse(self):
-        self.assertEqual((0, 0), p10.base64.parseNumeric('AAAA'))
-        self.assertEqual((32, 127), p10.base64.parseNumeric('gAB]'))
+        self.assertEqual((0, 0), p10.base64.parseNumeric('AAAA', dict({0: 262143})))
+        self.assertEqual((32, 127), p10.base64.parseNumeric('gAB]', dict({32: 262143})))
     
     def testCreateBase64SingleChar(self):
         self.assertEqual('A', p10.base64.toBase64(0, 0))
@@ -59,6 +59,9 @@ class Base64Test(unittest.TestCase):
     
     def testCreateServerNumericRightLength(self):
         self.assertEqual('A5', p10.base64.createNumeric((57, None)))
+    
+    def testMaxNumEquiv(self):
+        self.assertEqual(p10.base64.parseNumeric('ABABA', dict({1: 63})), p10.base64.parseNumeric('ABAAA', dict({1: 63})))
 
 
 def main():

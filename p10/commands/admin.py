@@ -7,7 +7,7 @@ class admin(genericcommand.genericcommand):
     """ Returns information about the server """
     
     def handle(self, origin, args):
-        if p10.base64.parseNumeric(args[0]) == (self._state.getServerID(), None):
+        if p10.base64.parseNumeric(args[0], self._state.maxClientNumerics) == (self._state.getServerID(), None):
             self._state.sendLine(None, "256", [p10.base64.createNumeric(origin), "Administrative information about " + self._state.getServerName()])
             self._state.sendLine(None, "257", [p10.base64.createNumeric(origin), "This is WISH for " + self._state.getNetworkName()])
             self._state.sendLine(None, "258", [p10.base64.createNumeric(origin), "The nominated administrative contact is " + self._state.getAdminNick()])

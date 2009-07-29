@@ -392,6 +392,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newServer((1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
         self.assertTrue(s.serverExists(2))
+        self.assertEquals(1000, s.maxClientNumerics[2])
     
     def testNoDuplicateServer(self):
         c = ConfigDouble()

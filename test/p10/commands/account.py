@@ -5,6 +5,7 @@ import p10.commands.account
 
 class StateDouble:
     numeric = None
+    maxClientNumerics = dict({1: 262143})
     def authenticate(self, origin, numeric, acname):
         self.numeric = numeric
 

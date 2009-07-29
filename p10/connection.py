@@ -16,3 +16,7 @@ class Connection:
             token: The token to be sent.
             args: An array of strings making up the message body """
         pass
+
+class ConnectionError(Exception):
+    """ When an error occurs in a connection """
+    pass

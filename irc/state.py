@@ -165,7 +165,7 @@ class state:
         """ Returns if a channel exists or not """
         return name in self.channels
     
-    def joinChannel(self, origin, numeric, name, modes):
+    def joinChannel(self, origin, numeric, name, modes, ts=1270080000):
         """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
         # TODO: More stringent checks on whether or not this user is allowed to join this channel
         if self.userExists(numeric):
@@ -173,7 +173,7 @@ class state:
                 self.channels[name].join(numeric, modes)
                 self.users[numeric].join(name)
             else:
-                self.createChannel(numeric, name, self.ts())
+                self.createChannel(numeric, name, ts)
         else:
             raise StateError("Unknown user attempted to join a channel")
     

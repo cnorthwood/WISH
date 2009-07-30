@@ -196,7 +196,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(irc.state.StateError, s.joinChannel, (1,8), "#test", [])
+        self.assertRaises(irc.state.StateError, s.joinChannel, (1,8), (1,8), "#test", [])
     
     def testReplaceChannel(self):
         c = ConfigDouble()
@@ -261,7 +261,7 @@ class StateTest(unittest.TestCase):
         c = ConfigDouble()
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        s.joinChannel((1,1), "#test", [])
+        s.joinChannel((1,1), (1,1), "#test", [])
         self.assertTrue(s.channelExists("#test"))
         self.assertTrue((1,1) in s.channels["#test"].users)
         self.assertTrue(s.channels["#test"].isop((1,1)))
@@ -356,7 +356,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
-        s.joinChannel((1,1), "#test", ["v"])
+        s.joinChannel((1,1), (1,1), "#test", ["v"])
         self.assertEquals([(1,1)], s.channels["#test"].voices())
         s.clearChannelVoices((1,1), "#test")
         self.assertEquals([], s.channels["#test"].voices())
@@ -488,6 +488,105 @@ class StateTest(unittest.TestCase):
         self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
         s.removeGline((1, 1), "*!foo@bar.com", 8)
         self.assertNotEquals(None, s.isGlined("*!foo@bar.com"))
+    
+    def testPartChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        s.joinChannel((1,2), (1,2), "#test", [])
+        self.assertTrue(s.channels["#test"].ison((1,1)))
+        s.partChannel((1,1), "#test")
+        self.assertFalse(s.channels["#test"].ison((1,1)))
+    
+    def testUnknownUserPartsChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        self.assertRaises(irc.state.StateError, s.partChannel, (1,8), "#test")
+    
+    def testPartingChannelMustExist(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertRaises(irc.state.StateError, s.partChannel, (1,1), "#test")
+    
+    def testLastUserToPartsTurnsLightsOff(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        s.joinChannel((1,2), (1,2), "#test", [])
+        s.partChannel((1,1), "#test")
+        s.partChannel((1,2), "#test")
+        self.assertFalse(s.channelExists("#test"))
+    
+    def testUserPartsAllChannels(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        s.joinChannel((1,2), (1,2), "#test", [])
+        self.assertTrue(s.channels["#test"].ison((1,1)))
+        s.partAllChannels((1,1))
+        self.assertFalse(s.channels["#test"].ison((1,1)))
+    
+    def testInvite(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        s.invite((1,1), (1,2), "#test")
+        self.assertTrue(s.users[(1,2)].isInvited("#test"))
+    
+    def testInvitesAreHandedInOnJoin(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        s.invite((1,1), (1,2), "#test")
+        s.joinChannel((1,2), (1,2), "#test", [])
+        self.assertFalse(s.users[(1,2)].isInvited("#test"))
+    
+    def testChannelRemovalRemovesInvites(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        s.invite((1,1), (1,2), "#test")
+        s.partChannel((1,1), "#test")
+        self.assertFalse(s.users[(1,2)].isInvited("#test"))
+    
+    def testGetNumericFromNick(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        self.assertEquals((1,1), s.nick2numeric("test"))
+        self.assertEquals((1,2), s.nick2numeric("test2"))
+        self.assertEquals(None, s.nick2numeric("foo"))
+    
+    def testInviteTargetMustExist(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 6)
+        self.assertRaises(irc.state.StateError, s.invite, (1,1), (1,8), "#test")
+    
+    def testInviteChannelMustExist(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,8), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User 2")
+        self.assertRaises(irc.state.StateError, s.invite, (1,1), (1,8), "#test")
 
 def main():
     unittest.main()

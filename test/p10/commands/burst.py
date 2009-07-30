@@ -21,8 +21,8 @@ class StateDouble:
         return self.rv
     def changeChannelMode(self, origin, name, mode):
         self.modes.append(mode)
-    def joinChannel(self, origin, name, modes):
-        self.users.append((origin, modes))
+    def joinChannel(self, origin, numeric, name, modes):
+        self.users.append((numeric, modes))
     def addChannelBan(self, origin, name, mask):
         self.bans.append(mask)
 

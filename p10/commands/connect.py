@@ -2,7 +2,7 @@
 
 import genericcommand
 
-# We're just a leaf
+# TODO: We should be able to implement this using our decent P10 support
 
 class connect(genericcommand.genericcommand):
     pass

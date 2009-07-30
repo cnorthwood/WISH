@@ -52,6 +52,11 @@ class state:
         """ Check if the user is known to us """
         return numeric in self.users
     
+    def nick2numeric(self, nick):
+        for user in self.users:
+            if nick == self.users[user].nickname:
+                return user
+    
     def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         """ Change state to include a new user """
         # TODO: Do we have a name clash?
@@ -82,7 +87,7 @@ class state:
             self._servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
             self.maxClientNumerics[numeric] = maxclient
             if self.serverExists(uplink):
-                self._servers[uplink].children.append(numeric)
+                self._servers[uplink].addChild(numeric)
             else:
                 raise StateError("Unknown server introduced a new server")
     
@@ -138,6 +143,7 @@ class state:
                 # They're both the same, add new user as op
                 elif self.channels[name].ts == ts:
                     self.channels[name].join(origin, ["o"])
+                    self.users[origin].join(name)
                     return True
                 # Their channel is older, overrides ours and merge users
                 else:
@@ -145,11 +151,12 @@ class state:
                     oldusers = dict.keys(self.channels[name].users)
                     self.channels[name] = channel(name, ts)
                     for user in oldusers:
-                        self.joinChannel(user, name, [])
+                        self.joinChannel(None, user, name, [])
                     return True
             else:
                 self.channels[name] = channel(name, ts)
                 self.channels[name].join(origin, ["o"])
+                self.users[origin].join(name)
                 return True
         else:
             raise StateError("Unknown entity attempted to create a channel")
@@ -158,16 +165,45 @@ class state:
         """ Returns if a channel exists or not """
         return name in self.channels
     
-    def joinChannel(self, origin, name, modes):
+    def joinChannel(self, origin, numeric, name, modes):
         """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
         # TODO: More stringent checks on whether or not this user is allowed to join this channel
-        if self.userExists(origin):
+        if self.userExists(numeric):
             if self.channelExists(name):
-                self.channels[name].join(origin, modes)
+                self.channels[name].join(numeric, modes)
+                self.users[numeric].join(name)
             else:
-                self.createChannel(origin, name, self.ts())
+                self.createChannel(numeric, name, self.ts())
         else:
             raise StateError("Unknown user attempted to join a channel")
+    
+    def _cleanupChannel(self, name):
+        if len(self.channels[name].users) == 0:
+            del self.channels[name]
+            for user in self.users:
+                if self.users[user].isInvited(name):
+                    self.users[user].invites.remove(name)
+    
+    def partChannel(self, numeric, name):
+        """ A user parts a channel """
+        if self.userExists(numeric):
+            if self.channelExists(name):
+                # Note: No ison protection in order to support zombies
+                self.channels[name].part(numeric)
+                self.users[numeric].part(name)
+                self._cleanupChannel(name)
+            else:
+                raise StateError("User tried to leave a channel that does not exist")
+        else:
+            raise StateError("Unknown user attempted to leave a channel")
+    
+    def partAllChannels(self, numeric):
+        """ A user parts all channels """
+        # Shallow copy to allow us to modify during loop
+        for channel in self.users[numeric].channels.copy():
+            self.channels[channel].part(numeric)
+            self.users[numeric].part(channel)
+            self._cleanupChannel(channel)
     
     def changeChannelMode(self, origin, name, mode):
         """ Change the modes on a channel. Modes are tuples of the desired change (single modes only) and an optional argument, or None """
@@ -296,6 +332,17 @@ class state:
                 # Remove any g-lines that match that mask
                 if fnmatch.fnmatch(gline, mask):
                     del self._glines[gline]
+    
+    def invite(self, origin, target, channel):
+        """ Origin invites Target to Channel """
+        # TODO: Check origin can actually send invites
+        if self.userExists(target):
+            if self.channelExists(channel):
+                self.users[target].invite(channel)
+            else:
+                raise StateError("Attempted to invite a user into a non-existant channel")
+        else:
+            raise StateError("Attempted to invite a non-existant user to a channel")
 
 class user:
     """ Represents a user internally """
@@ -305,12 +352,14 @@ class user:
     username = ""
     hostname = ""
     _modes = dict()
+    channels = set()
     ip = 0
     fullname = ""
     account = ""
     hops = 0
     ts = 0
     away_reason = None
+    invites = set()
     
     def __init__(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         self.numeric = numeric
@@ -325,6 +374,8 @@ class user:
         self.ts = ts
         self.fullname = fullname
         self.away_reason = None
+        self.channels = set()
+        self.invites = set()
     
     def auth(self, account):
         """ Mark this user as authenticated """
@@ -358,6 +409,20 @@ class user:
             return False
         else:
             return True
+    
+    def join(self, channel):
+        self.channels.add(channel)
+        if self.isInvited(channel):
+            self.invites.remove(channel)
+    
+    def part(self, channel):
+        self.channels.remove(channel)
+    
+    def invite(self, channel):
+        self.invites.add(channel)
+    
+    def isInvited(self, channel):
+        return channel in self.invites
 
 class channel:
     """ Represents a channel internally """
@@ -378,6 +443,10 @@ class channel:
     def join(self, numeric, modes):
         """ Add a user to a channel """
         self.users[numeric] = modes
+    
+    def part(self, numeric):
+        """ A user is parting this channel """
+        del self.users[numeric]
     
     def changeMode(self, mode):
         """ Change a single mode associated with this channel """
@@ -451,9 +520,9 @@ class server:
     link_ts = 0
     protocol = ""
     hops = 0
-    flags = []
+    flags = set()
     description = ""
-    children = []
+    children = set()
     
     def __init__(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
         self.numeric = numeric
@@ -464,9 +533,12 @@ class server:
         self.link_ts = link_ts
         self.protocol = protocol
         self.hops = hops
-        self.flags = flags
+        self.flags = set(flags)
         self.description = description
-        self.children = []
+        self.children = set()
+    
+    def addChild(self, child):
+        self.children.add(child)
 
 class StateError(Exception):
     """ An exception raised if a state change would be impossible, generally suggesting we've gone out of sync """

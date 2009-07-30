@@ -16,7 +16,7 @@ class StateDouble:
     def createChannel(self, origin, name, ts):
         self.created.append(name)
         return self.rv
-    def joinChannel(self, origin, name, modes):
+    def joinChannel(self, origin, numeric, name, modes):
         self.joincalled = True
     def deop(self, origin, channel, user):
         self.deopcalled = True

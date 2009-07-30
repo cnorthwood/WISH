@@ -29,9 +29,9 @@ class burst(genericcommand.genericcommand):
                 # Handle any user modes, but only if this is a new channel
                 user = user.split(":")
                 if len(user) > 1 and cstatus:
-                    self._state.joinChannel(p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), args[0],user[1])
+                    self._state.joinChannel(p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), args[0],user[1])
                 else:
-                    self._state.joinChannel(p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), args[0], "")
+                    self._state.joinChannel(p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), args[0], "")
             nextarg = nextarg + 1
         
         # Handle channel bans, but only if this is a new channel

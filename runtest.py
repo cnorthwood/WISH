@@ -16,7 +16,6 @@ from test.p10.commands.connect import *
 from test.p10.commands.create import *
 from test.p10.commands.destruct import *
 from test.p10.commands.desynch import *
-from test.p10.commands.dns import *
 from test.p10.commands.end_of_burst import *
 from test.p10.commands.eob_ack import *
 from test.p10.commands.error import *

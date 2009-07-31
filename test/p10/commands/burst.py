@@ -2,6 +2,7 @@
 
 import unittest
 import p10.commands.burst
+import threading
 
 class StateDouble:
     rv = True
@@ -9,6 +10,7 @@ class StateDouble:
     users = []
     ts = 0
     bans = []
+    lock = None
     maxClientNumerics = dict({1: 262143})
     def __init__(self):
         self.rv = True
@@ -16,6 +18,7 @@ class StateDouble:
         self.users = []
         self.ts = 0
         self.bans = []
+        self.lock = threading.RLock()
     def createChannel(self, origin, name, ts):
         self.ts = ts
         return self.rv

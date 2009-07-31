@@ -2,17 +2,20 @@
 
 import unittest
 import p10.commands.create
+import threading
 
 class StateDouble:
     rv = True
     created = list()
     joincalled = False
     deopcalled = False
+    lock = None
     def __init__(self):
         self.rv = True
         self.created = list()
         self.joincalled = False
         self.deopcalled = False
+        self.lock = threading.RLock()
     def createChannel(self, origin, name, ts):
         self.created.append(name)
         return self.rv

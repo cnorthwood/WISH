@@ -16,6 +16,7 @@ class state:
     _servers = dict()
     maxClientNumerics = dict()
     _glines = dict()
+    _jupes = dict()
     lock = None
     _callbacks = dict()
     
@@ -27,6 +28,7 @@ class state:
         self._servers[self.getServerID()] = server(None, self.getServerID(), self.getServerName(), 262143, self.ts(), self.ts(), "P10", 0, [], "WISH on " + self.getServerName())
         self.maxClientNumerics = dict({self.getServerID(): 262143})
         self._glines = dict()
+        self._jupes = dict()
         self.lock = threading.RLock()
         self._callbacks = dict()
     
@@ -54,6 +56,8 @@ class state:
     CALLBACK_GLINEADD = "GlineAdd"
     CALLBACK_GLINEREMOVE = "GlineRemove"
     CALLBACK_INVITE = "Invite"
+    CALLBACK_JUPEADD = "JupeAdd"
+    CALLBACK_JUPEREMOVE = "JupeRemove"
     
     def registerCallback(self, type, callbackfn):
         if type in self._callbacks:
@@ -304,18 +308,6 @@ class state:
             self.lock.release()
         self._callback(self.CALLBACK_CHANNELPART, (numeric, name))
     
-    # The stuff below is not written to spec, it needs rewritting before uncommentings
-    #
-    #def clearChannel(self, origin, name, reason):
-    #    """ Removes all users from a channel """
-    #    for user in self.channels[name].users.copy():
-    #        self.kick(origin, user, name, reason)
-    
-    #def kick(self, origin, target, name, reason):
-    #    self.channels[name].part(target)
-    #    self.users[target].part(name)
-    #    self._cleanupChannel(name)
-    
     def partAllChannels(self, numeric):
         """ A user parts all channels """
         # Shallow copy to allow us to modify during loop
@@ -492,6 +484,7 @@ class state:
     
     def addGline(self, origin, mask, target, expires, description):
         """ Add a g-line """
+        # TODO: Check if origin can actually set g-lines
         if target == None or target == self.getServerID():
             self._glines[mask] = (description, expires)
         self._callback(self.CALLBACK_GLINEADD, (origin, mask, target, expires, description))
@@ -511,6 +504,7 @@ class state:
     
     def removeGline(self, origin, mask, target):
         """ Remove a g-line """
+        # TODO: Check if origin can actually remove g-lines
         self.lock.acquire()
         try:
             if target == None or target == self.getServerID():
@@ -538,6 +532,33 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_INVITE, (origin, target, channel))
+    
+    def _cleanupJupes(self):
+        for jupe in self._jupes.copy():
+            if self._jupes[jupe][0] < self.ts():
+                del self._jupes[jupe]
+    
+    def isJuped(self, server):
+        self._cleanupJupes()
+        if server in self._jupes:
+            return self._jupes[server]
+        else:
+            return None
+    
+    def addJupe(self, origin, target, server, expire, reason):
+        if target == None or target == self.getServerID():
+            self._jupes[server] = (expire, reason)
+        self._callback(self.CALLBACK_JUPEADD, (origin, target, server, expire, reason))
+    
+    def removeJupe(self, origin, target, server):
+        if target == None or target == self.getServerID():
+            self.lock.acquire()
+            try:
+                if server in self._jupes:
+                    del self._jupes[server]
+            finally:
+                self.lock.release()
+        self._callback(self.CALLBACK_JUPEREMOVE, (origin, target, server))
 
 class user:
     """ Represents a user internally """

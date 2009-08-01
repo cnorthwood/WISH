@@ -64,7 +64,10 @@ class ConnectionDouble:
         self.callbacks.append("GlineRemove")
     def callbackInvite(self, (origin, target, channel)):
         self.callbacks.append("Invite")
-    
+    def callbackJupeAdd(self, (origin, target, server, expire, reason)):
+        self.callbacks.append("JupeAdd")
+    def callbackJupeRemove(self, (origin, target, server)):
+        self.callbacks.append("JupeRemove")
 
 class StateTest(unittest.TestCase):
     
@@ -93,6 +96,8 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_GLINEADD, n.callbackGlineAdd)
         s.registerCallback(irc.state.state.CALLBACK_GLINEREMOVE, n.callbackGlineRemove)
         s.registerCallback(irc.state.state.CALLBACK_INVITE, n.callbackInvite)
+        s.registerCallback(irc.state.state.CALLBACK_JUPEADD, n.callbackJupeAdd)
+        s.registerCallback(irc.state.state.CALLBACK_JUPEREMOVE, n.callbackJupeRemove)
         return n
     
     def testAuthentication(self):
@@ -951,14 +956,85 @@ class StateTest(unittest.TestCase):
         s.partAllChannels((1,1))
         self.assertEquals(["PartAll"], n.callbacks)
     
-    #def testClearChannel(self):
-    #    c = ConfigDouble()
-    #    s = irc.state.state(c)
-    #    s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-    #    s.createChannel((1,1), "#test", 6)
-    #    self.assertTrue(s.channelExists("#test"))
-    #    s.clearChannel((1, None), "#test", "For giggles")
-    #    self.assertFalse(s.channelExists("#test"))
+    def testAddJupe(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), None, "test.example.com", s.ts() + 3600, "Testing")
+        self.assertNotEquals(None, s.isJuped("test.example.com"))
+    
+    def testAddJupeCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.addJupe((1,1), None, "test.example.com", s.ts() + 3600, "Testing")
+        self.assertEquals(["JupeAdd"], n.callbacks)
+    
+    def testJupesExpire(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), None, "test.example.com", s.ts() - 3600, "Testing")
+        self.assertEquals(None, s.isJuped("test.example.com"))
+    
+    def testAddJupeSpecificTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), 1, "test.example.com", s.ts() + 3600, "Testing")
+        self.assertNotEquals(None, s.isJuped("test.example.com"))
+    
+    def testAddJupeSpecificTargetButNotUs(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), 18, "test.example.com", s.ts() + 3600, "Testing")
+        self.assertEquals(None, s.isJuped("test.example.com"))
+    
+    def testRemoveJupe(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), None, "test.example.com", s.ts() + 3600, "Testing")
+        self.assertNotEquals(None, s.isJuped("test.example.com"))
+        s.removeJupe((1,1), None, "test.example.com")
+        self.assertEquals(None, s.isJuped("test.example.com"))
+    
+    def testRemoveJupeCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), None, "test.example.com", s.ts() + 3600, "Testing")
+        n = self._setupCallbacks(s)
+        s.removeJupe((1,1), None, "test.example.com")
+        self.assertEquals(["JupeRemove"], n.callbacks)
+    
+    def testRemoveJupeSpecificTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), None, "test.example.com", s.ts() + 3600, "Testing")
+        s.removeJupe((1,1), 1, "test.example.com")
+        self.assertEquals(None, s.isJuped("test.example.com"))
+    
+    def testRemoveJupeSpecificTargetButNotUs(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals(None, s.isJuped("test.example.com"))
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.addJupe((1,1), None, "test.example.com", s.ts() + 3600, "Testing")
+        s.removeJupe((1,1), 7, "test.example.com")
+        self.assertNotEquals(None, s.isJuped("test.example.com"))
+
 
 def main():
     unittest.main()

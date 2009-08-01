@@ -90,7 +90,7 @@ class connection(threading.Thread):
         p.registerHandler("F", commands.info.info(self._state))
         p.registerHandler("I", commands.invite.invite(self._state))
         p.registerHandler("J", commands.join.join(self._state))
-        #p.registerHandler("JU", commands.jupe.jupe(self._state))
+        p.registerHandler("JU", commands.jupe.jupe(self._state))
         #p.registerHandler("K", commands.kick.kick(self._state))
         #p.registerHandler("D", commands.kill.kill(self._state))
         #p.registerHandler("LI", commands.links.links(self._state))

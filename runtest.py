@@ -27,9 +27,7 @@ from test.p10.commands.jupe import *
 from test.p10.commands.kick import *
 from test.p10.commands.kill import *
 from test.p10.commands.links import *
-from test.p10.commands.list import *
 from test.p10.commands.lusers import *
-from test.p10.commands.map import *
 from test.p10.commands.mode import *
 from test.p10.commands.motd import *
 from test.p10.commands.names import *

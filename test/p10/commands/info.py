@@ -4,42 +4,23 @@ import unittest
 import p10.commands.info
 
 class StateDouble:
-    numerics = []
+    
+    insight = None
+    maxClientNumerics = dict({1: 262143})
     
     def __init__(self):
-        self.numerics = []
+        self.insight = None
     
-    def sendLine(self, client, command, args):
-        self.numerics.append(command)
-    
-    def getServerID(self):
-        return 1
-    
-    def getServerName(self):
-        return "example.com"
-    
-    def getNetworkName(self):
-        return "example.com"
-    
-    def getAdminNick(self):
-        return "test"
-    
-    def getContactEmail(self):
-        return "text@example.com"
+    def sendServerInfo(self, origin, target):
+        self.insight = (origin, target)
 
 class InfoTest(unittest.TestCase):
     
-    def testSendsCorrectNumerics(self):
+    def testTriggersCallback(self):
         s = StateDouble()
         a = p10.commands.info.info(s)
         a.handle((1,1), ["AB"])
-        self.assertEquals(["371","374"], s.numerics)
-        
-    def testOnlySendIfWeAreDestination(self):
-        s = StateDouble()
-        a = p10.commands.info.info(s)
-        a.handle((1,1), ["AF"])
-        self.assertEquals([], s.numerics)
+        self.assertEquals(((1,1), (1, None)), s.insight)
 
 def main():
     unittest.main()

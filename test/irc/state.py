@@ -11,8 +11,6 @@ class ConfigDouble:
     contactEmail = "test@example.com"
     called = False
     hiddenUserMask = ".users.example.com"
-    def sendLine(self, source_client, token, args):
-        self.called = True
 
 class ConnectionDouble:
     callbacks = []
@@ -68,6 +66,10 @@ class ConnectionDouble:
         self.callbacks.append("JupeAdd")
     def callbackJupeRemove(self, (origin, target, server)):
         self.callbacks.append("JupeRemove")
+    def callbackAdminInfo(self, (origin, target)):
+        self.callbacks.append("RequestAdmin")
+    def callbackInfoRequest(self, (origin, target)):
+        self.callbacks.append("RequestInfo")
 
 class StateTest(unittest.TestCase):
     
@@ -98,6 +100,8 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_INVITE, n.callbackInvite)
         s.registerCallback(irc.state.state.CALLBACK_JUPEADD, n.callbackJupeAdd)
         s.registerCallback(irc.state.state.CALLBACK_JUPEREMOVE, n.callbackJupeRemove)
+        s.registerCallback(irc.state.state.CALLBACK_REQUESTADMIN, n.callbackAdminInfo)
+        s.registerCallback(irc.state.state.CALLBACK_REQUESTINFO, n.callbackInfoRequest)
         return n
     
     def testAuthentication(self):
@@ -138,12 +142,6 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
         self.assertRaises(irc.state.StateError, s.authenticate, (8, None), (1, 1), "Test")
-    
-    def testSendMessage(self):
-        c = ConfigDouble()
-        s = irc.state.state(c)
-        s.sendLine(2, "TEST", ['foo'])
-        self.assertTrue(c.called)
     
     def testGetNumericID(self):
         c = ConfigDouble()
@@ -1034,7 +1032,51 @@ class StateTest(unittest.TestCase):
         s.addJupe((1,1), None, "test.example.com", s.ts() + 3600, "Testing")
         s.removeJupe((1,1), 7, "test.example.com")
         self.assertNotEquals(None, s.isJuped("test.example.com"))
-
+    
+    def testSendAdminCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.sendAdminInfo((1,1), (1, None))
+        self.assertEquals(["RequestAdmin"], n.callbacks)
+    
+    def testSendAdminCallbackOnlyIfOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.sendAdminInfo, (1,19), (1, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testSendAdminTargetMustBeServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.sendAdminInfo, (1,1), (1, 1))
+        self.assertEquals([], n.callbacks)
+    
+    def testSendInfoCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.sendServerInfo, (1,19), (1, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testSendInfoCallbackOnlyIfOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.sendServerInfo, (1,19), (1, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testSendInfoTargetMustBeServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.sendServerInfo, (1,1), (1, 1))
+        self.assertEquals([], n.callbacks)
 
 def main():
     unittest.main()

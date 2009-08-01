@@ -58,6 +58,8 @@ class state:
     CALLBACK_INVITE = "Invite"
     CALLBACK_JUPEADD = "JupeAdd"
     CALLBACK_JUPEREMOVE = "JupeRemove"
+    CALLBACK_REQUESTADMIN = "RequestAdmin"
+    CALLBACK_REQUESTINFO = "RequestInfo"
     
     def registerCallback(self, type, callbackfn):
         if type in self._callbacks:
@@ -70,13 +72,6 @@ class state:
             for callback in self._callbacks[type]:
                 callback(args)
     
-    def sendLine(self, client, command, args):
-        """ Send a line """
-        #
-        # TODO: This needs to be completely rewritten to deal with the better connection design that will be introduced later
-        #
-        self._config.sendLine(client, command, args)
-    
     def getServerID(self):
         return self._config.numericID
     
@@ -88,6 +83,24 @@ class state:
     
     def getContactEmail(self):
         return self._config.contactEmail
+    
+    def sendAdminInfo(self, origin, target):
+        if self.userExists(origin):
+            if target[1] == None:
+                self._callback(self.CALLBACK_REQUESTADMIN, (origin, target))
+            else:
+                raise p10.parser.ProtocolError("Admin information can only be requested from servers")
+        else:
+            raise StateError("Received a request for admin info from a non-existant user")
+    
+    def sendServerInfo(self, origin, target):
+        if self.userExists(origin):
+            if target[1] == None:
+                self._callback(self.CALLBACK_REQUESTINFO, (origin, target))
+            else:
+                raise p10.parser.ProtocolError("Admin information can only be requested from servers")
+        else:
+            raise StateError("Received a request for server info from a non-existant user")
     
     def ts(self):
         """ Returns our current timestamp """

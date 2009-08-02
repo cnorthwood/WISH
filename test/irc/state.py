@@ -691,6 +691,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.newUser((1, None), (1,2), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
+        self.assertFalse(s.channels["#test"].isvoice((1,2)))
         s.joinChannel((1,2), (1,2), "#test", [])
         self.assertFalse(s.channels["#test"].isvoice((1,2)))
         s.voice((1, 1), "#test", (1,2))

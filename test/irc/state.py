@@ -32,7 +32,7 @@ class ConnectionDouble:
         self.callbacks.append("ChannelCreate")
     def callbackChannelJoin(self, (origin, numeric, name, modes, ts)):
         self.callbacks.append("ChannelJoin")
-    def callbackChannelPart(self, (numeric, name)):
+    def callbackChannelPart(self, (numeric, name, reason)):
         self.callbacks.append("ChannelPart")
     def callbackPartAll(self, (numeric)):
         self.callbacks.append("PartAll")
@@ -70,6 +70,12 @@ class ConnectionDouble:
         self.callbacks.append("RequestAdmin")
     def callbackInfoRequest(self, (origin, target)):
         self.callbacks.append("RequestInfo")
+    def callbackKick(self, (origin, channel, target, reason)):
+        self.callbacks.append("ChannelKick")
+    def callbackZombiePart(self, (origin, target)):
+        self.callbacks.append("ChannelPartZombie")
+    def callbackChannelDestroy(self, (origin, channel, ts)):
+        self.callbacks.append("DestroyChannel")
 
 class StateTest(unittest.TestCase):
     
@@ -102,6 +108,9 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_JUPEREMOVE, n.callbackJupeRemove)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTADMIN, n.callbackAdminInfo)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTINFO, n.callbackInfoRequest)
+        s.registerCallback(irc.state.state.CALLBACK_CHANNELKICK, n.callbackKick)
+        s.registerCallback(irc.state.state.CALLBACK_CHANNELPARTZOMBIE, n.callbackZombiePart)
+        s.registerCallback(irc.state.state.CALLBACK_CHANNELDESTROY, n.callbackChannelDestroy)
         return n
     
     def testAuthentication(self):
@@ -416,7 +425,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.joinChannel((1,1), (1,1), "#test", [])
         self.assertTrue(s.channelExists("#test"))
-        self.assertTrue((1,1) in s.channels["#test"].users)
+        self.assertTrue((1,1) in s.channels["#test"].users())
         self.assertTrue(s.channels["#test"].isop((1,1)))
     
     def testJoinCallback(self):
@@ -802,7 +811,7 @@ class StateTest(unittest.TestCase):
         s.createChannel((1,1), "#test", 6)
         s.joinChannel((1,2), (1,2), "#test", [])
         self.assertTrue(s.channels["#test"].ison((1,1)))
-        s.partChannel((1,1), "#test")
+        s.partChannel((1,1), "#test", "Test")
         self.assertFalse(s.channels["#test"].ison((1,1)))
     
     def testUnknownUserPartsChannel(self):
@@ -811,13 +820,21 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
         s.createChannel((1,1), "#test", 6)
-        self.assertRaises(irc.state.StateError, s.partChannel, (1,8), "#test")
+        self.assertRaises(irc.state.StateError, s.partChannel, (1,8), "#test", "Test")
+    
+    def testUserNotOnChannelPartsChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((1,1), "#test", 6)
+        self.assertRaises(irc.state.StateError, s.partChannel, (1,2), "#test", "Test")
     
     def testPartingChannelMustExist(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        self.assertRaises(irc.state.StateError, s.partChannel, (1,1), "#test")
+        self.assertRaises(irc.state.StateError, s.partChannel, (1,1), "#test", "Test")
     
     def testLastUserToPartsTurnsLightsOff(self):
         c = ConfigDouble()
@@ -826,8 +843,8 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
         s.createChannel((1,1), "#test", 6)
         s.joinChannel((1,2), (1,2), "#test", [])
-        s.partChannel((1,1), "#test")
-        s.partChannel((1,2), "#test")
+        s.partChannel((1,1), "#test", "Test")
+        s.partChannel((1,2), "#test", "Test")
         self.assertFalse(s.channelExists("#test"))
     
     def testUserPartsAllChannels(self):
@@ -877,7 +894,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
         s.createChannel((1,1), "#test", 6)
         s.invite((1,1), (1,2), "#test")
-        s.partChannel((1,1), "#test")
+        s.partChannel((1,1), "#test", "Test")
         self.assertFalse(s.users[(1,2)].isInvited("#test"))
     
     def testGetNumericFromNick(self):
@@ -941,7 +958,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,2), "test2", "test2", "example.com", [("+l", None)], 0, 0, 0, "Test User 2")
         s.createChannel((1,1), "#test", 6)
         n = self._setupCallbacks(s)
-        s.partChannel((1,1), "#test")
+        s.partChannel((1,1), "#test", "Test")
         self.assertEquals(["ChannelPart"], n.callbacks)
     
     def testPartAllChannelCallback(self):
@@ -1077,6 +1094,106 @@ class StateTest(unittest.TestCase):
         n = self._setupCallbacks(s)
         self.assertRaises(p10.parser.ProtocolError, s.sendServerInfo, (1,1), (1, 1))
         self.assertEquals([], n.callbacks)
+    
+    def testKickLocalUser(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 6)
+        s.joinChannel((1,2), (1,2), "#test", [])
+        n = self._setupCallbacks(s)
+        s.kick((1,1), "#test", (1,2), "Testing")
+        self.assertFalse(s.channels["#test"].ison((1,2)))
+        self.assertEquals(["ChannelKick","ChannelPartZombie"], n.callbacks)
+    
+    def testKickRemoteUser(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newServer((1, None), 6, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+        s.newUser((6, None), (6,2), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 6)
+        s.joinChannel((6,2), (6,2), "#test", [])
+        n = self._setupCallbacks(s)
+        s.kick((1,1), "#test", (6,2), "Testing")
+        self.assertTrue(s.channels["#test"].ison((6,2)))
+        self.assertFalse((6,2) in s.channels["#test"].users())
+        self.assertEquals(["ChannelKick"], n.callbacks)
+        s.partChannel((6,2), "#test", "bouncing kick")
+        self.assertEquals(["ChannelKick","ChannelPartZombie"], n.callbacks)
+    
+    def testKickOnInvalidChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertRaises(irc.state.StateError, s.kick, (1,1), "#test", (1,2), "Testing")
+    
+    def testKickOnInvalidUser(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 6)
+        self.assertRaises(irc.state.StateError, s.kick, (1,1), "#test", (1,2), "Testing")
+    
+    def testKickingLastUserClosesChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 6)
+        n = self._setupCallbacks(s)
+        s.kick((1,1), "#test", (1,1), "Testing")
+        self.assertFalse(s.channelExists("#test"))
+        self.assertEquals(["ChannelKick","ChannelPartZombie"], n.callbacks)
+    
+    def testKickingLastUserRemoteDoesNotCloseChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 6, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+        s.newUser((6, None), (6,2), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((6,2), "#test", 6)
+        n = self._setupCallbacks(s)
+        s.kick((6, None), "#test", (6,2), "Testing")
+        self.assertTrue(s.channelExists("#test"))
+        self.assertEquals(["ChannelKick"], n.callbacks)
+        s.partChannel((6,2), "#test", "bouncing kick")
+        self.assertEquals(["ChannelKick","ChannelPartZombie"], n.callbacks)
+        self.assertFalse(s.channelExists("#test"))
+    
+    def testDestructChannelIgnoresFullChannels(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 6)
+        self.assertTrue(s.channelExists("#test"))
+        n = self._setupCallbacks(s)
+        s.destroyChannel((1, None), "#test", 6)
+        self.assertEquals([], n.callbacks)
+        self.assertTrue(s.channelExists("#test"))
+    
+    def testDestructChannelIgnoresBadChannels(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.destroyChannel((1, None), "#test", 6)
+        self.assertEquals(['DestroyChannel'], n.callbacks)
+        self.assertFalse(s.channelExists("#test"))
+    
+    def testDestructChannelRemovesZombifiedChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 6, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+        s.newUser((6, None), (6,2), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User 2")
+        s.createChannel((6,2), "#test", 6)
+        s.kick((6, None), "#test", (6,2), "Testing")
+        self.assertTrue(s.channelExists("#test"))
+        n = self._setupCallbacks(s)
+        s.destroyChannel((6, None), "#test", 6)
+        self.assertEquals(['DestroyChannel'], n.callbacks)
+        self.assertFalse(s.channelExists("#test"))
 
 def main():
     unittest.main()

@@ -40,9 +40,12 @@ class state:
     CALLBACK_AWAY = "Away"
     CALLBACK_BACK = "Back"
     CALLBACK_CHANNELCREATE = "ChannelCreate"
+    CALLBACK_CHANNELDESTROY = "ChannelDestroy"
     CALLBACK_CHANNELJOIN = "ChannelJoin"
     CALLBACK_CHANNELPART = "ChannelPart"
     CALLBACK_CHANNELPARTALL = "ChannelPartAll"
+    CALLBACK_CHANNELPARTZOMBIE = "ChannelPartZombie"
+    CALLBACK_CHANNELKICK = "ChannelKick"
     CALLBACK_CHANNELMODECHANGE = "ChannelModeChange"
     CALLBACK_CHANNELBANADD = "ChannelBanAdd"
     CALLBACK_CHANNELBANREMOVE = "ChannelBanRemove"
@@ -294,7 +297,7 @@ class state:
     def _cleanupChannel(self, name):
         self.lock.acquire()
         try:
-            if len(self.channels[name].users) == 0:
+            if len(self.channels[name].users()) == 0 and len(self.channels[name].zombies) == 0:
                 del self.channels[name]
                 for user in self.users:
                     # Remove any invites that a user may have to this channel
@@ -303,23 +306,68 @@ class state:
         finally:
             self.lock.release()
     
-    def partChannel(self, numeric, name):
+    def partChannel(self, numeric, name, reason):
         """ A user parts a channel """
         self.lock.acquire()
+        callbackZombie = True
         try:
             if self.userExists(numeric):
                 if self.channelExists(name):
-                    # Note: No ison protection in order to support zombies
-                    self.channels[name].part(numeric)
-                    self.users[numeric].part(name)
-                    self._cleanupChannel(name)
+                    if self.channels[name].ison(numeric):
+                        if numeric in self.channels[name].users():
+                            callbackZombie = False
+                        self.channels[name].part(numeric)
+                        self.users[numeric].part(name)
+                        self._cleanupChannel(name)
+                    else:
+                        raise StateError("User that was not on a channel attempted to leave it")
                 else:
                     raise StateError("User tried to leave a channel that does not exist")
             else:
                 raise StateError("Unknown user attempted to leave a channel")
         finally:
             self.lock.release()
-        self._callback(self.CALLBACK_CHANNELPART, (numeric, name))
+        if callbackZombie:
+            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (numeric, name))
+        else:
+            self._callback(self.CALLBACK_CHANNELPART, (numeric, name, reason))
+    
+    def destroyChannel(self, origin, channel, ts):
+        callback = True
+        self.lock.acquire()
+        try:
+            if self.channelExists(channel):
+                if len(self.channels[channel].users()) == 0:
+                    del self.channels[channel]
+                else:
+                    callback = False
+        finally:
+            self.lock.release()
+        if callback:
+            self._callback(self.CALLBACK_CHANNELDESTROY, (origin, channel, ts))
+    
+    def kick(self, origin, channel, target, reason):
+        self.lock.acquire()
+        bouncepart = False
+        try:
+            # Kick handling is weird. We zombify the user until we receive an upstream part
+            if self.channelExists(channel):
+                if self.channels[channel].ison(target):
+                    self.channels[channel].kick(target)
+                    if target[0] == self.getServerID():
+                        bouncepart = True
+                        self.channels[channel].part(target)
+                        self.users[target].part(channel)
+                        self._cleanupChannel(channel)
+                else:
+                    raise StateError("Kick received for a user that is not on the channel")
+            else:
+                raise StateError("Kick received for a user on an unknown channel")
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_CHANNELKICK, (origin, channel, target, reason))
+        if bouncepart:
+            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (target, channel))
     
     def partAllChannels(self, numeric):
         """ A user parts all channels """
@@ -658,24 +706,31 @@ class channel:
     
     name = ""
     ts = 0
-    users = dict()
+    _users = dict()
+    zombies = set()
     modes = dict()
     bans = []
     
     def __init__(self, name, ts):
         self.name = name
         self.ts = ts
-        self.users = dict()
+        self._users = dict()
+        self.zombies = set()
         self.modes = dict()
         self.bans = []
     
     def join(self, numeric, modes):
         """ Add a user to a channel """
-        self.users[numeric] = set(modes)
+        self._users[numeric] = set(modes)
     
     def part(self, numeric):
         """ A user is parting this channel """
-        del self.users[numeric]
+        if numeric in self.zombies:
+            self.zombies.remove(numeric)
+        del self._users[numeric]
+    
+    def kick(self, numeric):
+        self.zombies.add(numeric)
     
     def changeMode(self, mode):
         """ Change a single mode associated with this channel """
@@ -709,27 +764,34 @@ class channel:
     
     def ison(self, numeric):
         """ Returns whether a not a user is on a channel """
-        return numeric in self.users
+        return numeric in self._users
+    
+    def users(self):
+        """ Return the list of users """
+        r = self._users.copy()
+        for z in self.zombies:
+            del r[z]
+        return r
     
     def isop(self, numeric):
         """ Check if a user is op on a channel """
         if self.ison(numeric):
-            return "o" in self.users[numeric]
+            return "o" in self._users[numeric]
         else:
             return False
     
     def ops(self):
         ret = list()
-        for user in self.users:
+        for user in self.users():
             if self.isop(user):
                 ret.append(user)
         return ret
     
     def op(self, numeric):
-        self.users[numeric].add("o")
+        self._users[numeric].add("o")
     
     def deop(self, numeric):
-        self.users[numeric].remove("o")
+        self._users[numeric].remove("o")
     
     def clearOps(self):
         for op in self.ops():
@@ -738,19 +800,19 @@ class channel:
     def isvoice(self, numeric):
         """ Check if a user is voice on a channel """
         if self.ison(numeric):
-            return "v" in self.users[numeric]
+            return "v" in self._users[numeric]
         else:
             return False
     
     def voices(self):
         ret = list()
-        for user in self.users:
+        for user in self.users():
             if self.isvoice(user):
                 ret.append(user)
         return ret
     
     def devoice(self, numeric):
-        self.users[numeric].remove("v")
+        self._users[numeric].remove("v")
     
     def clearVoices(self):
         for voice in self.voices():

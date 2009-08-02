@@ -496,6 +496,21 @@ class state:
             self.lock.release()
         self._callback(self.CALLBACK_CHANNELCLEAROPS, (origin, name))
     
+    def voice(self, origin, channel, user):
+        self.lock.acquire()
+        try:
+            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
+                if self.channelExists(channel):
+                    if self.channels[channel].ison(user):
+                        self.channels[channel].voice(user)
+                    else:
+                        raise StateError("Attempted to voice a user that was not on the channel")
+                else:
+                    raise StateError("Attempted to voice a user on a channel that does not exist")
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_CHANNELVOICE, (origin, channel, user))
+    
     def devoice(self, origin, channel, user):
         """ Devoices a user from the channel. """
         self.lock.acquire()
@@ -810,6 +825,9 @@ class channel:
             if self.isvoice(user):
                 ret.append(user)
         return ret
+    
+    def voice(self, numeric):
+        self._users[numeric].add("v")
     
     def devoice(self, numeric):
         self._users[numeric].remove("v")

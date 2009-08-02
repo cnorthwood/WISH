@@ -685,6 +685,42 @@ class StateTest(unittest.TestCase):
         s.devoice((1, 1), "#test", (1,2))
         self.assertEquals(['Devoice'], n.callbacks)
     
+    def testVoice(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1, 1), "#test", 6)
+        s.joinChannel((1,2), (1,2), "#test", [])
+        self.assertFalse(s.channels["#test"].isvoice((1,2)))
+        s.voice((1, 1), "#test", (1,2))
+        self.assertTrue(s.channels["#test"].isvoice((1,2)))
+    
+    def testVoiceCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1, 1), "#test", 6)
+        s.joinChannel((1,2), (1,2), "#test", [])
+        n = self._setupCallbacks(s)
+        s.voice((1, 1), "#test", (1,2))
+        self.assertEquals(['Voice'], n.callbacks)
+    
+    def testVoiceBadUser(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1,None),(1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1, 1), "#test", 6)
+        self.assertRaises(irc.state.StateError, s.voice, (1,1), "#test", (1,6))
+    
+    def testVoiceBadChan(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1,None),(1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1,None),(1,6), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertRaises(irc.state.StateError, s.voice, (1,1), "#test", (1,6))
+    
     def testNewServer(self):
         c = ConfigDouble()
         s = irc.state.state(c)

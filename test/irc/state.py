@@ -76,6 +76,10 @@ class ConnectionDouble:
         self.callbacks.append("ChannelPartZombie")
     def callbackChannelDestroy(self, (origin, channel, ts)):
         self.callbacks.append("DestroyChannel")
+    def callbackQuit(self, (numeric, reason)):
+        self.callbacks.append(("Quit", reason))
+    def callbackKill(self, (origin, target, path, reason)):
+        self.callbacks.append(("Kill", path, reason))
 
 class StateTest(unittest.TestCase):
     
@@ -111,6 +115,8 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_CHANNELKICK, n.callbackKick)
         s.registerCallback(irc.state.state.CALLBACK_CHANNELPARTZOMBIE, n.callbackZombiePart)
         s.registerCallback(irc.state.state.CALLBACK_CHANNELDESTROY, n.callbackChannelDestroy)
+        s.registerCallback(irc.state.state.CALLBACK_QUIT, n.callbackQuit)
+        s.registerCallback(irc.state.state.CALLBACK_KILL, n.callbackKill)
         return n
     
     def testAuthentication(self):
@@ -1231,6 +1237,68 @@ class StateTest(unittest.TestCase):
         s.destroyChannel((6, None), "#test", 6)
         self.assertEquals(['DestroyChannel'], n.callbacks)
         self.assertFalse(s.channelExists("#test"))
+    
+    def testUserQuit(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertTrue(s.userExists((1,1)))
+        s.quit((1,1), "A reason")
+        self.assertFalse(s.userExists((1,1)))
+    
+    def testUserQuitCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.quit((1,1), "A reason")
+        self.assertEquals([('Quit', 'A reason')], n.callbacks)
+    
+    def testUserQuitMustExist(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertRaises(irc.state.StateError, s.quit, (1,1), "A reason")
+    
+    def testUserQuittingLeavesChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 16)
+        s.joinChannel((1,2), (1,2), "#test", [])
+        s.quit((1,2), "A reason")
+        self.assertFalse(s.channels["#test"].ison((1,2)))
+    
+    def testLastUserQuittingClosesChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 16)
+        s.quit((1,1), "A reason")
+        self.assertFalse(s.channelExists("#test"))
+    
+    def testUserKillLocal(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 3, "origin.example.com", 1000, 0, 0, "P10", 1, "", "A testing server")
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertTrue(s.userExists((1,1)))
+        n = self._setupCallbacks(s)
+        s.kill((3,None), (1,1), [], "Testing")
+        self.assertFalse(s.userExists((1,1)))
+        self.assertEquals([("Quit", "Killed (Testing)")], n.callbacks)
+    
+    def testUserKillRemote(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 3, "origin.example.com", 1000, 0, 0, "P10", 1, "", "A testing server")
+        s.newServer((1, None), 6, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+        s.newUser((6, None), (6,2), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User 2")
+        self.assertTrue(s.userExists((6,2)))
+        n = self._setupCallbacks(s)
+        s.kill((3,None), (6,2), [], "Testing")
+        self.assertTrue(s.userExists((6,2)))
+        self.assertEquals([("Kill", ["origin.example.com"], "Testing")], n.callbacks)
 
 def main():
     unittest.main()

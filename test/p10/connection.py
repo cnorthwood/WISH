@@ -15,7 +15,10 @@ class StateDouble:
     pass
 
 class ConnectionTest(unittest.TestCase):
-    pass
+    
+    def testCanInit(self):
+        s = StateDouble()
+        c = TestableConnection(s)
 
 def main():
     unittest.main()

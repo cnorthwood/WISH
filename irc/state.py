@@ -34,6 +34,8 @@ class state:
     
     # Constants for Callbacks
     CALLBACK_NEWUSER = "NewUser"
+    CALLBACK_QUIT = "Quit"
+    CALLBACK_KILL = "Kill"
     CALLBACK_CHANGENICK = "ChangeNick"
     CALLBACK_NEWSERVER = "NewServer"
     CALLBACK_AUTHENTICATE = "Authenticate"
@@ -87,6 +89,40 @@ class state:
     def getContactEmail(self):
         return self._config.contactEmail
     
+    def serverExists(self, numeric):
+        return numeric in self._servers
+    
+    def newServer(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
+        """ Add a new server """
+        # TODO: More stringent checks - do we have a name clash?
+        self.lock.acquire()
+        try:
+            if self.serverExists(numeric):
+                raise StateError("Attempted to add a duplicate server")
+            elif origin[1] != None:
+                raise p10.parser.ProtocolError("User attempted to add a server")
+            else:
+                uplink = origin[0]
+                if self.serverExists(uplink):
+                    self._servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
+                    self.maxClientNumerics[numeric] = maxclient
+                    self._servers[uplink].addChild(numeric)
+                else:
+                    raise StateError("Unknown server introduced a new server")
+        finally:
+           self.lock.release()
+        self._callback(self.CALLBACK_NEWSERVER, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description))
+    
+    def getNextHop(self, dest):
+        if dest[0] == self.getServerID():
+            return None
+        elif dest[0] in self._servers:
+            return dest[0]
+        else:
+            for server in self._servers:
+                if dest[0] in server.children:
+                    return server.numeric
+    
     def sendAdminInfo(self, origin, target):
         if self.userExists(origin):
             if target[1] == None:
@@ -137,29 +173,25 @@ class state:
             self.lock.release()
         self._callback(self.CALLBACK_NEWUSER, (origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname))
     
-    def serverExists(self, numeric):
-        return numeric in self._servers
-    
-    def newServer(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
-        """ Add a new server """
-        # TODO: More stringent checks - do we have a name clash?
+    def quit(self, numeric, reason):
         self.lock.acquire()
         try:
-            if self.serverExists(numeric):
-                raise StateError("Attempted to add a duplicate server")
-            elif origin[1] != None:
-                raise p10.parser.ProtocolError("User attempted to add a server")
+            if self.userExists(numeric):
+                for channel in self.users[numeric].channels:
+                    self.channels[channel].part(numeric)
+                    self._cleanupChannel(channel)
+                del self.users[numeric]
             else:
-                uplink = origin[0]
-                if self.serverExists(uplink):
-                    self._servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
-                    self.maxClientNumerics[numeric] = maxclient
-                    self._servers[uplink].addChild(numeric)
-                else:
-                    raise StateError("Unknown server introduced a new server")
+                raise StateError("Unknown user tried to quit")
         finally:
-           self.lock.release()
-        self._callback(self.CALLBACK_NEWSERVER, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description))
+            self.lock.release()
+        self._callback(self.CALLBACK_QUIT, (numeric, reason))
+    
+    def kill(self, origin, target, path, reason):
+        if target[0] == self.getServerID():
+            self.quit(target, "Killed (" + reason + ")")
+        else:
+            self._callback(self.CALLBACK_KILL, (origin, target, [self._servers[self.getNextHop(origin)].name] + path, reason))
     
     def changeNick(self, origin, numeric, newnick, newts):
         """ Change the nickname of a user on the network """

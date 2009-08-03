@@ -65,6 +65,8 @@ class state:
     CALLBACK_JUPEREMOVE = "JupeRemove"
     CALLBACK_REQUESTADMIN = "RequestAdmin"
     CALLBACK_REQUESTINFO = "RequestInfo"
+    CALLBACK_REQUESTLUSERS = "RequestLusers"
+    CALLBACK_REQUESTLINKS = "RequestLinks"
     
     def registerCallback(self, type, callbackfn):
         if type in self._callbacks:
@@ -137,9 +139,27 @@ class state:
             if target[1] == None:
                 self._callback(self.CALLBACK_REQUESTINFO, (origin, target))
             else:
-                raise p10.parser.ProtocolError("Admin information can only be requested from servers")
+                raise p10.parser.ProtocolError("Server information can only be requested from servers")
         else:
             raise StateError("Received a request for server info from a non-existant user")
+    
+    def sendLusersInfo(self, origin, target, dummy):
+        if self.userExists(origin):
+            if target[1] == None:
+                self._callback(self.CALLBACK_REQUESTLUSERS, (origin, target, dummy))
+            else:
+                raise p10.parser.ProtocolError("Luser information can only be requested from servers")
+        else:
+            raise StateError("Received a request for Luser info from a non-existant user")
+    
+    def sendLinksInfo(self, origin, target, mask):
+        if self.userExists(origin):
+            if target[1] == None:
+                self._callback(self.CALLBACK_REQUESTLINKS, (origin, target, mask))
+            else:
+                raise p10.parser.ProtocolError("Links information can only be requested from servers")
+        else:
+            raise StateError("Received a request for links info from a non-existant user")
     
     def ts(self):
         """ Returns our current timestamp """

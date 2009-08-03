@@ -17,12 +17,14 @@ class burst(genericcommand.genericcommand):
                 if args[nextarg][0] == "+":
                     # But only if this is a new channel
                     if cstatus:
+                        modes = []
                         for mode in args[nextarg][1:]:
                             if mode == "k" or mode == "l":
                                 nextarg = nextarg + 1
-                                self._state.changeChannelMode(origin, args[0], (mode, args[nextarg]))
+                                modes.append((mode, args[nextarg]))
                             else:
-                                self._state.changeChannelMode(origin, args[0], (mode, None))
+                                modes.append((mode, None))
+                        self._state.changeChannelMode(origin, args[0], modes)
                     nextarg = nextarg + 1
             
             # Handle users on the channel

@@ -84,6 +84,10 @@ class ConnectionDouble:
         self.callbacks.append("Lusers")
     def callbackLinks(self, (origin, target, mask)):
         self.callbacks.append("Links")
+    def callbackChangeUserMode(self, (numeric, modes)):
+        self.callbacks.append("ChangeUserMode")
+    def callbackMOTD(self, (numeric, target)):
+        self.callbacks.append("MOTD")
 
 class StateTest(unittest.TestCase):
     
@@ -93,6 +97,7 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_CHANGENICK, n.callbackChangeNick)
         s.registerCallback(irc.state.state.CALLBACK_NEWSERVER, n.callbackNewServer)
         s.registerCallback(irc.state.state.CALLBACK_AUTHENTICATE, n.callbackAuthenticate)
+        s.registerCallback(irc.state.state.CALLBACK_USERMODECHANGE, n.callbackChangeUserMode)
         s.registerCallback(irc.state.state.CALLBACK_AWAY, n.callbackAway)
         s.registerCallback(irc.state.state.CALLBACK_BACK, n.callbackBack)
         s.registerCallback(irc.state.state.CALLBACK_CHANNELCREATE, n.callbackChannelCreate)
@@ -123,6 +128,7 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_KILL, n.callbackKill)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTLUSERS, n.callbackLusers)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTLINKS, n.callbackLinks)
+        s.registerCallback(irc.state.state.CALLBACK_REQUESTMOTD, n.callbackMOTD)
         return n
     
     def testAuthentication(self):
@@ -193,22 +199,22 @@ class StateTest(unittest.TestCase):
         c = ConfigDouble()
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        self.assertTrue(s.users[(1,1)].hasGlobalMode('o'))
-        self.assertFalse(s.users[(1,1)].hasGlobalMode('b'))
+        self.assertTrue(s.users[(1,1)].hasMode('o'))
+        self.assertFalse(s.users[(1,1)].hasMode('b'))
     
     def testCorrectModesWithArgs(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.users[(1,1)].changeMode(("+b","test"))
-        self.assertEquals(s.users[(1,1)].hasGlobalMode('b'), "test")
+        self.assertEquals(s.users[(1,1)].hasMode('b'), "test")
     
     def testNegativeModesWithArgs(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+b", None)], 0, 0, 0, "Test User")
         s.users[(1,1)].changeMode(("-b",None))
-        self.assertFalse(s.users[(1,1)].hasGlobalMode('b'))
+        self.assertFalse(s.users[(1,1)].hasMode('b'))
     
     def testNewUserMustNotExist(self):
         c = ConfigDouble()
@@ -372,8 +378,19 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         self.assertFalse(s.channels["#test"].hasMode("p"))
-        s.changeChannelMode((1,1), "#test", ("+p", None))
+        s.changeChannelMode((1,1), "#test", [("+p", None)])
         self.assertTrue(s.channels["#test"].hasMode("p"))
+    
+    def testSetChannelModesMulti(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1, 1), "#test", 6)
+        self.assertFalse(s.channels["#test"].hasMode("p"))
+        self.assertFalse(s.channels["#test"].hasMode("k"))
+        s.changeChannelMode((1,1), "#test", [("+p", None),("+k", "Test")])
+        self.assertTrue(s.channels["#test"].hasMode("p"))
+        self.assertEquals("Test", s.channels["#test"].hasMode("k"))
     
     def testSetChannelModesCallback(self):
         c = ConfigDouble()
@@ -381,7 +398,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         n = self._setupCallbacks(s)
-        s.changeChannelMode((1,1), "#test", ("+p", None))
+        s.changeChannelMode((1,1), "#test", [("+p", None)])
         self.assertEquals(["ChannelChangeMode"], n.callbacks)
     
     def testSetChannelModesWithArgs(self):
@@ -390,7 +407,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         self.assertFalse(s.channels["#test"].hasMode("l"))
-        s.changeChannelMode((1, 1), "#test", ("+l", "26"))
+        s.changeChannelMode((1, 1), "#test", [("+l", "26")])
         self.assertEquals("26", s.channels["#test"].hasMode("l"))
     
     def testChannelModeChangerMustExistOrServer(self):
@@ -1350,6 +1367,55 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
         self.assertRaises(p10.parser.ProtocolError, s.sendLusersInfo,(1,1), (1, 6), "dummy")
+        self.assertEquals([], n.callbacks)
+    
+    def testSendMOTDCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.sendMOTD((1,1), (1, None))
+        self.assertEquals(["MOTD"], n.callbacks)
+    
+    def testSendMOTDCallbackOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.sendMOTD,(1,1), (1, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testSendMOTDCallbackTargetIsServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.sendMOTD,(1,1), (1, 6))
+        self.assertEquals([], n.callbacks)
+    
+    def testChangeUserMode(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.changeUserMode((1,1), [("+o", None)])
+        self.assertTrue(s.users[(1,1)].hasMode("o"))
+        self.assertEquals(['ChangeUserMode'], n.callbacks)
+    
+    def testChangeUserModeMultiple(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.changeUserMode((1,1), [("+o", None),("+h", "Test")])
+        self.assertTrue(s.users[(1,1)].hasMode("o"))
+        self.assertEquals("Test", s.users[(1,1)].hasMode("h"))
+        self.assertEquals(['ChangeUserMode'], n.callbacks)
+    
+    def testChangeUserModeMustExist(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.changeUserMode, (1,1), [("+o", None),("+h", "Test")])
         self.assertEquals([], n.callbacks)
 
 def main():

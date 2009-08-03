@@ -20,6 +20,10 @@ class state:
     lock = None
     _callbacks = dict()
     
+    #
+    # Configuration of this server
+    #
+    
     def __init__(self, config):
         self.users = dict()
         self.channels = dict()
@@ -32,53 +36,6 @@ class state:
         self.lock = threading.RLock()
         self._callbacks = dict()
     
-    # Constants for Callbacks
-    CALLBACK_NEWUSER = "NewUser"
-    CALLBACK_QUIT = "Quit"
-    CALLBACK_KILL = "Kill"
-    CALLBACK_CHANGENICK = "ChangeNick"
-    CALLBACK_NEWSERVER = "NewServer"
-    CALLBACK_AUTHENTICATE = "Authenticate"
-    CALLBACK_AWAY = "Away"
-    CALLBACK_BACK = "Back"
-    CALLBACK_CHANNELCREATE = "ChannelCreate"
-    CALLBACK_CHANNELDESTROY = "ChannelDestroy"
-    CALLBACK_CHANNELJOIN = "ChannelJoin"
-    CALLBACK_CHANNELPART = "ChannelPart"
-    CALLBACK_CHANNELPARTALL = "ChannelPartAll"
-    CALLBACK_CHANNELPARTZOMBIE = "ChannelPartZombie"
-    CALLBACK_CHANNELKICK = "ChannelKick"
-    CALLBACK_CHANNELMODECHANGE = "ChannelModeChange"
-    CALLBACK_CHANNELBANADD = "ChannelBanAdd"
-    CALLBACK_CHANNELBANREMOVE = "ChannelBanRemove"
-    CALLBACK_CHANNELBANCLEAR = "ChannelBanClear"
-    CALLBACK_CHANNELOP = "ChannelOp"
-    CALLBACK_CHANNELDEOP = "ChannelDeop"
-    CALLBACK_CHANNELCLEAROPS = "ChannelClearOps"
-    CALLBACK_CHANNELVOICE = "ChannelVoice"
-    CALLBACK_CHANNELDEVOICE = "ChannelDevoice"
-    CALLBACK_CHANNELCLEARVOICES = "ChannelClearVoices"
-    CALLBACK_GLINEADD = "GlineAdd"
-    CALLBACK_GLINEREMOVE = "GlineRemove"
-    CALLBACK_INVITE = "Invite"
-    CALLBACK_JUPEADD = "JupeAdd"
-    CALLBACK_JUPEREMOVE = "JupeRemove"
-    CALLBACK_REQUESTADMIN = "RequestAdmin"
-    CALLBACK_REQUESTINFO = "RequestInfo"
-    CALLBACK_REQUESTLUSERS = "RequestLusers"
-    CALLBACK_REQUESTLINKS = "RequestLinks"
-    
-    def registerCallback(self, type, callbackfn):
-        if type in self._callbacks:
-            self._callbacks[type].append(callbackfn)
-        else:
-            self._callbacks[type] = [callbackfn]
-    
-    def _callback(self, type, args):
-        if type in self._callbacks:
-            for callback in self._callbacks[type]:
-                callback(args)
-    
     def getServerID(self):
         return self._config.numericID
     
@@ -90,40 +47,6 @@ class state:
     
     def getContactEmail(self):
         return self._config.contactEmail
-    
-    def serverExists(self, numeric):
-        return numeric in self._servers
-    
-    def newServer(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
-        """ Add a new server """
-        # TODO: More stringent checks - do we have a name clash?
-        self.lock.acquire()
-        try:
-            if self.serverExists(numeric):
-                raise StateError("Attempted to add a duplicate server")
-            elif origin[1] != None:
-                raise p10.parser.ProtocolError("User attempted to add a server")
-            else:
-                uplink = origin[0]
-                if self.serverExists(uplink):
-                    self._servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
-                    self.maxClientNumerics[numeric] = maxclient
-                    self._servers[uplink].addChild(numeric)
-                else:
-                    raise StateError("Unknown server introduced a new server")
-        finally:
-           self.lock.release()
-        self._callback(self.CALLBACK_NEWSERVER, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description))
-    
-    def getNextHop(self, dest):
-        if dest[0] == self.getServerID():
-            return None
-        elif dest[0] in self._servers:
-            return dest[0]
-        else:
-            for server in self._servers:
-                if dest[0] in server.children:
-                    return server.numeric
     
     def sendAdminInfo(self, origin, target):
         if self.userExists(origin):
@@ -161,9 +84,144 @@ class state:
         else:
             raise StateError("Received a request for links info from a non-existant user")
     
+    def sendMOTD(self, origin, target):
+        if self.userExists(origin):
+            if target[1] == None:
+                self._callback(self.CALLBACK_REQUESTMOTD, (origin, target))
+            else:
+                raise p10.parser.ProtocolError("MOTD can only be requested from servers")
+        else:
+            raise StateError("Received a request for MOTD from a non-existant user")
+    
     def ts(self):
         """ Returns our current timestamp """
         return int(time.time())
+    
+    #
+    # Callbacks
+    #
+    
+    # Constants for Callbacks
+    CALLBACK_NEWUSER = "NewUser"
+    CALLBACK_QUIT = "Quit"
+    CALLBACK_KILL = "Kill"
+    CALLBACK_USERMODECHANGE = "UserModeChange"
+    CALLBACK_CHANGENICK = "ChangeNick"
+    CALLBACK_NEWSERVER = "NewServer"
+    CALLBACK_AUTHENTICATE = "Authenticate"
+    CALLBACK_AWAY = "Away"
+    CALLBACK_BACK = "Back"
+    CALLBACK_CHANNELCREATE = "ChannelCreate"
+    CALLBACK_CHANNELDESTROY = "ChannelDestroy"
+    CALLBACK_CHANNELJOIN = "ChannelJoin"
+    CALLBACK_CHANNELPART = "ChannelPart"
+    CALLBACK_CHANNELPARTALL = "ChannelPartAll"
+    CALLBACK_CHANNELPARTZOMBIE = "ChannelPartZombie"
+    CALLBACK_CHANNELKICK = "ChannelKick"
+    CALLBACK_CHANNELMODECHANGE = "ChannelModeChange"
+    CALLBACK_CHANNELBANADD = "ChannelBanAdd"
+    CALLBACK_CHANNELBANREMOVE = "ChannelBanRemove"
+    CALLBACK_CHANNELBANCLEAR = "ChannelBanClear"
+    CALLBACK_CHANNELOP = "ChannelOp"
+    CALLBACK_CHANNELDEOP = "ChannelDeop"
+    CALLBACK_CHANNELCLEAROPS = "ChannelClearOps"
+    CALLBACK_CHANNELVOICE = "ChannelVoice"
+    CALLBACK_CHANNELDEVOICE = "ChannelDevoice"
+    CALLBACK_CHANNELCLEARVOICES = "ChannelClearVoices"
+    CALLBACK_GLINEADD = "GlineAdd"
+    CALLBACK_GLINEREMOVE = "GlineRemove"
+    CALLBACK_INVITE = "Invite"
+    CALLBACK_JUPEADD = "JupeAdd"
+    CALLBACK_JUPEREMOVE = "JupeRemove"
+    CALLBACK_REQUESTADMIN = "RequestAdmin"
+    CALLBACK_REQUESTINFO = "RequestInfo"
+    CALLBACK_REQUESTLUSERS = "RequestLusers"
+    CALLBACK_REQUESTLINKS = "RequestLinks"
+    CALLBACK_REQUESTMOTD = "RequestMOTD"
+    
+    def registerCallback(self, type, callbackfn):
+        if type in self._callbacks:
+            self._callbacks[type].append(callbackfn)
+        else:
+            self._callbacks[type] = [callbackfn]
+    
+    def _callback(self, type, args):
+        if type in self._callbacks:
+            for callback in self._callbacks[type]:
+                callback(args)
+    
+    #
+    # Other servers
+    #
+    
+    def serverExists(self, numeric):
+        return numeric in self._servers
+    
+    def newServer(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
+        """ Add a new server """
+        # TODO: More stringent checks - do we have a name clash?
+        self.lock.acquire()
+        try:
+            if self.serverExists(numeric):
+                raise StateError("Attempted to add a duplicate server")
+            elif origin[1] != None:
+                raise p10.parser.ProtocolError("User attempted to add a server")
+            else:
+                uplink = origin[0]
+                if self.serverExists(uplink):
+                    self._servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
+                    self.maxClientNumerics[numeric] = maxclient
+                    self._servers[uplink].addChild(numeric)
+                else:
+                    raise StateError("Unknown server introduced a new server")
+        finally:
+           self.lock.release()
+        self._callback(self.CALLBACK_NEWSERVER, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description))
+    
+    def getNextHop(self, dest):
+        if dest[0] == self.getServerID():
+            return None
+        elif dest[0] in self._servers:
+            return dest[0]
+        else:
+            for server in self._servers:
+                if dest[0] in server.children:
+                    return server.numeric
+    
+    #
+    # Jupes
+    #
+    
+    def _cleanupJupes(self):
+        for jupe in self._jupes.copy():
+            if self._jupes[jupe][0] < self.ts():
+                del self._jupes[jupe]
+    
+    def isJuped(self, server):
+        self._cleanupJupes()
+        if server in self._jupes:
+            return self._jupes[server]
+        else:
+            return None
+    
+    def addJupe(self, origin, target, server, expire, reason):
+        if target == None or target == self.getServerID():
+            self._jupes[server] = (expire, reason)
+        self._callback(self.CALLBACK_JUPEADD, (origin, target, server, expire, reason))
+    
+    def removeJupe(self, origin, target, server):
+        if target == None or target == self.getServerID():
+            self.lock.acquire()
+            try:
+                if server in self._jupes:
+                    del self._jupes[server]
+            finally:
+                self.lock.release()
+        self._callback(self.CALLBACK_JUPEREMOVE, (origin, target, server))
+    
+    #
+    # User handling
+    #
     
     def userExists(self, numeric):
         """ Check if the user is known to us """
@@ -192,6 +250,19 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_NEWUSER, (origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname))
+    
+    def partAllChannels(self, numeric):
+        """ A user parts all channels """
+        # Shallow copy to allow us to modify during loop
+        self.lock.acquire()
+        try:
+            for channel in self.users[numeric].channels.copy():
+                self.channels[channel].part(numeric)
+                self.users[numeric].part(channel)
+                self._cleanupChannel(channel)
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_CHANNELPARTALL, (numeric))
     
     def quit(self, numeric, reason):
         self.lock.acquire()
@@ -226,6 +297,18 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_CHANGENICK, (origin, numeric, newnick, newts))
+    
+    def changeUserMode(self, numeric, modes):
+        self.lock.acquire()
+        try:
+            if self.userExists(numeric):
+                for mode in modes:
+                    self.users[numeric].changeMode(mode)
+            else:
+                raise StateError("Attempted to change mode on a user that does not exist")
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_USERMODECHANGE, (numeric, modes))
     
     def authenticate(self, origin, numeric, acname):
         """ Authenticate a user """
@@ -275,6 +358,10 @@ class state:
             self.lock.release()
         self._callback(self.CALLBACK_BACK, (numeric))
     
+    #
+    # Channel handling
+    #
+    
     def createChannel(self, origin, name, ts):
         """ Create a channel. Returns false if the new channel is invalid (i.e., is newer than one already known about) """
         # TODO: More stringent checks on whether or not this channel can be created (i.e., is badchan'd or juped)
@@ -322,30 +409,6 @@ class state:
         """ Returns if a channel exists or not """
         return name in self.channels
     
-    def joinChannel(self, origin, numeric, name, modes, ts=1270080000):
-        """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
-        # TODO: More stringent checks on whether or not this user is allowed to join this channel
-        self.lock.acquire()
-        callback = False
-        try:
-            if self.userExists(numeric):
-                if self.channelExists(name):
-                    self.channels[name].join(numeric, modes)
-                    self.users[numeric].join(name)
-                    callback = True
-                else:
-                    self.createChannel(numeric, name, ts)
-            else:
-                raise StateError("Unknown user attempted to join a channel")
-        finally:
-            self.lock.release()
-        if callback:
-            self._callback(self.CALLBACK_CHANNELJOIN, (origin, numeric, name, modes, ts))
-            if "o" in modes:
-                self._callback(self.CALLBACK_CHANNELOP, (origin, name, numeric))
-            if "v" in modes:
-                self._callback(self.CALLBACK_CHANNELVOICE, (origin, name, numeric))
-    
     def _cleanupChannel(self, name):
         self.lock.acquire()
         try:
@@ -357,32 +420,6 @@ class state:
                         self.users[user].invites.remove(name)
         finally:
             self.lock.release()
-    
-    def partChannel(self, numeric, name, reason):
-        """ A user parts a channel """
-        self.lock.acquire()
-        callbackZombie = True
-        try:
-            if self.userExists(numeric):
-                if self.channelExists(name):
-                    if self.channels[name].ison(numeric):
-                        if numeric in self.channels[name].users():
-                            callbackZombie = False
-                        self.channels[name].part(numeric)
-                        self.users[numeric].part(name)
-                        self._cleanupChannel(name)
-                    else:
-                        raise StateError("User that was not on a channel attempted to leave it")
-                else:
-                    raise StateError("User tried to leave a channel that does not exist")
-            else:
-                raise StateError("Unknown user attempted to leave a channel")
-        finally:
-            self.lock.release()
-        if callbackZombie:
-            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (numeric, name))
-        else:
-            self._callback(self.CALLBACK_CHANNELPART, (numeric, name, reason))
     
     def destroyChannel(self, origin, channel, ts):
         callback = True
@@ -398,50 +435,15 @@ class state:
         if callback:
             self._callback(self.CALLBACK_CHANNELDESTROY, (origin, channel, ts))
     
-    def kick(self, origin, channel, target, reason):
-        self.lock.acquire()
-        bouncepart = False
-        try:
-            # Kick handling is weird. We zombify the user until we receive an upstream part
-            if self.channelExists(channel):
-                if self.channels[channel].ison(target):
-                    self.channels[channel].kick(target)
-                    if target[0] == self.getServerID():
-                        bouncepart = True
-                        self.channels[channel].part(target)
-                        self.users[target].part(channel)
-                        self._cleanupChannel(channel)
-                else:
-                    raise StateError("Kick received for a user that is not on the channel")
-            else:
-                raise StateError("Kick received for a user on an unknown channel")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELKICK, (origin, channel, target, reason))
-        if bouncepart:
-            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (target, channel))
-    
-    def partAllChannels(self, numeric):
-        """ A user parts all channels """
-        # Shallow copy to allow us to modify during loop
-        self.lock.acquire()
-        try:
-            for channel in self.users[numeric].channels.copy():
-                self.channels[channel].part(numeric)
-                self.users[numeric].part(channel)
-                self._cleanupChannel(channel)
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELPARTALL, (numeric))
-    
-    def changeChannelMode(self, origin, name, mode):
-        """ Change the modes on a channel. Modes are tuples of the desired change (single modes only) and an optional argument, or None """
+    def changeChannelMode(self, origin, name, modes):
+        """ Change the modes on a channel. Modes are lists of tuples of the desired change and an optional argument, or None """
         # TODO: More stringent checks on whether or not this user is allowed to make this mode change
         self.lock.acquire()
         try:
             if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
                 if self.channelExists(name):
-                    self.channels[name].changeMode(mode)
+                    for mode in modes:
+                        self.channels[name].changeMode(mode)
                 else:
                     raise StateError("Attempted to change the modes on a channel that does not exist")
             else:
@@ -497,6 +499,83 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_CHANNELBANCLEAR, (origin, name))
+    
+    #
+    # User channel events
+    #
+    
+    def joinChannel(self, origin, numeric, name, modes, ts=1270080000):
+        """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
+        # TODO: More stringent checks on whether or not this user is allowed to join this channel
+        self.lock.acquire()
+        callback = False
+        try:
+            if self.userExists(numeric):
+                if self.channelExists(name):
+                    self.channels[name].join(numeric, modes)
+                    self.users[numeric].join(name)
+                    callback = True
+                else:
+                    self.createChannel(numeric, name, ts)
+            else:
+                raise StateError("Unknown user attempted to join a channel")
+        finally:
+            self.lock.release()
+        if callback:
+            self._callback(self.CALLBACK_CHANNELJOIN, (origin, numeric, name, modes, ts))
+            if "o" in modes:
+                self._callback(self.CALLBACK_CHANNELOP, (origin, name, numeric))
+            if "v" in modes:
+                self._callback(self.CALLBACK_CHANNELVOICE, (origin, name, numeric))
+    
+    def partChannel(self, numeric, name, reason):
+        """ A user parts a channel """
+        self.lock.acquire()
+        callbackZombie = True
+        try:
+            if self.userExists(numeric):
+                if self.channelExists(name):
+                    if self.channels[name].ison(numeric):
+                        if numeric in self.channels[name].users():
+                            callbackZombie = False
+                        self.channels[name].part(numeric)
+                        self.users[numeric].part(name)
+                        self._cleanupChannel(name)
+                    else:
+                        raise StateError("User that was not on a channel attempted to leave it")
+                else:
+                    raise StateError("User tried to leave a channel that does not exist")
+            else:
+                raise StateError("Unknown user attempted to leave a channel")
+        finally:
+            self.lock.release()
+        if callbackZombie:
+            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (numeric, name))
+        else:
+            self._callback(self.CALLBACK_CHANNELPART, (numeric, name, reason))
+    
+    def kick(self, origin, channel, target, reason):
+        self.lock.acquire()
+        bouncepart = False
+        try:
+            # Kick handling is weird. We zombify the user until we receive an upstream part
+            if self.channelExists(channel):
+                if self.channels[channel].ison(target):
+                    self.channels[channel].kick(target)
+                    if target[0] == self.getServerID():
+                        bouncepart = True
+                        self.channels[channel].part(target)
+                        self.users[target].part(channel)
+                        self._cleanupChannel(channel)
+                else:
+                    raise StateError("Kick received for a user that is not on the channel")
+            else:
+                raise StateError("Kick received for a user on an unknown channel")
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_CHANNELKICK, (origin, channel, target, reason))
+        if bouncepart:
+            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (target, channel))
     
     def op(self, origin, channel, user):
         self.lock.acquire()
@@ -598,6 +677,26 @@ class state:
             self.lock.release()
         self._callback(self.CALLBACK_CHANNELCLEARVOICES, (origin, name))
     
+    def invite(self, origin, target, channel):
+        """ Origin invites Target to Channel """
+        # TODO: Check origin can actually send invites
+        self.lock.acquire()
+        try:
+            if self.userExists(target):
+                if self.channelExists(channel):
+                    self.users[target].invite(channel)
+                else:
+                    raise StateError("Attempted to invite a user into a non-existant channel")
+            else:
+                raise StateError("Attempted to invite a non-existant user to a channel")
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_INVITE, (origin, target, channel))
+    
+    #
+    # G-lines
+    #
+    
     def _cleanupGlines(self):
         """ Remove expired g-lines """
         # Make shallow copy of dictionary so we can modify it during iteration
@@ -644,49 +743,6 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_GLINEREMOVE, (origin, mask, target))
-    
-    def invite(self, origin, target, channel):
-        """ Origin invites Target to Channel """
-        # TODO: Check origin can actually send invites
-        self.lock.acquire()
-        try:
-            if self.userExists(target):
-                if self.channelExists(channel):
-                    self.users[target].invite(channel)
-                else:
-                    raise StateError("Attempted to invite a user into a non-existant channel")
-            else:
-                raise StateError("Attempted to invite a non-existant user to a channel")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_INVITE, (origin, target, channel))
-    
-    def _cleanupJupes(self):
-        for jupe in self._jupes.copy():
-            if self._jupes[jupe][0] < self.ts():
-                del self._jupes[jupe]
-    
-    def isJuped(self, server):
-        self._cleanupJupes()
-        if server in self._jupes:
-            return self._jupes[server]
-        else:
-            return None
-    
-    def addJupe(self, origin, target, server, expire, reason):
-        if target == None or target == self.getServerID():
-            self._jupes[server] = (expire, reason)
-        self._callback(self.CALLBACK_JUPEADD, (origin, target, server, expire, reason))
-    
-    def removeJupe(self, origin, target, server):
-        if target == None or target == self.getServerID():
-            self.lock.acquire()
-            try:
-                if server in self._jupes:
-                    del self._jupes[server]
-            finally:
-                self.lock.release()
-        self._callback(self.CALLBACK_JUPEREMOVE, (origin, target, server))
 
 class user:
     """ Represents a user internally """
@@ -740,7 +796,7 @@ class user:
         else:
             self._modes[mode[0][1]] = False
     
-    def hasGlobalMode(self, mode):
+    def hasMode(self, mode):
         """ Return whether a user has a mode """
         if mode in self._modes:
             return self._modes[mode]

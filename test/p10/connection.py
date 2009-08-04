@@ -7,6 +7,7 @@ class TestableConnection(p10.connection.connection):
     insight = []
     def __init__(self, state):
         self.insight = []
+        p10.connection.connection.__init__(self, state)
     def _sendLine(self, origin, command, args):
         self.insight.append(self._parser.build(source_client, token, args))
 

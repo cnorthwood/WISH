@@ -88,6 +88,8 @@ class ConnectionDouble:
         self.callbacks.append("ChangeUserMode")
     def callbackMOTD(self, (numeric, target)):
         self.callbacks.append("MOTD")
+    def callbackNames(self, (origin, target, channel)):
+        self.callbacks.append("Names")
 
 class StateTest(unittest.TestCase):
     
@@ -129,6 +131,7 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_REQUESTLUSERS, n.callbackLusers)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTLINKS, n.callbackLinks)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTMOTD, n.callbackMOTD)
+        s.registerCallback(irc.state.state.CALLBACK_REQUESTNAMES, n.callbackNames)
         return n
     
     def testAuthentication(self):
@@ -1416,6 +1419,41 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
         self.assertRaises(irc.state.StateError, s.changeUserMode, (1,1), [("+o", None),("+h", "Test")])
+        self.assertEquals([], n.callbacks)
+    
+    def testSendNamesCallback(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        n = self._setupCallbacks(s)
+        s.sendChannelUsers((1,1), (1, None), "#test")
+        self.assertEquals(["Names"], n.callbacks)
+    
+    def testSendNamesCallbackOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.sendChannelUsers, (1,6), (1, None), "#test")
+        self.assertEquals([], n.callbacks)
+    
+    def testSendNamesCallbackTargetIsServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.sendChannelUsers, (1,1), (1, 6), "#test")
+        self.assertEquals([], n.callbacks)
+    
+    def testSendNamesCallbackChannelisChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.sendChannelUsers, (1,1), (1, None), "#test")
         self.assertEquals([], n.callbacks)
 
 def main():

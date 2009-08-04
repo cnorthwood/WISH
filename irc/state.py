@@ -138,6 +138,7 @@ class state:
     CALLBACK_REQUESTLUSERS = "RequestLusers"
     CALLBACK_REQUESTLINKS = "RequestLinks"
     CALLBACK_REQUESTMOTD = "RequestMOTD"
+    CALLBACK_REQUESTNAMES = "RequestNames"
     
     def registerCallback(self, type, callbackfn):
         if type in self._callbacks:
@@ -408,6 +409,19 @@ class state:
     def channelExists(self, name):
         """ Returns if a channel exists or not """
         return name in self.channels
+    
+    def sendChannelUsers(self, origin, target, channel):
+        """ Callback for a request for a list of users on a channel (/names) """
+        if self.userExists(origin):
+            if self.channelExists(channel):
+                if target[1] == None:
+                    self._callback(self.CALLBACK_REQUESTNAMES, (origin, target, channel))
+                else:
+                    raise p10.parser.ProtocolError("Names information can only be requested from servers")
+            else:
+                raise p10.parser.ProtocolError("Names information requested for a non-existant channel")
+        else:
+            raise StateError("Received a request for names info from a non-existant user")
     
     def _cleanupChannel(self, name):
         self.lock.acquire()

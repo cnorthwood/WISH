@@ -100,7 +100,7 @@ class connection(threading.Thread):
         p.registerHandler("E", commands.names.names(self._state))
         p.registerHandler("N", commands.nick.nick(self._state))
         #p.registerHandler("O", commands.notice.notice(self._state))
-        #p.registerHandler("OM", commands.opmode.opmode(self._state))
+        p.registerHandler("OM", commands.mode.mode(self._state))
         #p.registerHandler("L", commands.part.part(self._state))
         #p.registerHandler("PASS", commands.password.password(self._state))
         #p.registerHandler("G", commands.ping.ping(self._state))

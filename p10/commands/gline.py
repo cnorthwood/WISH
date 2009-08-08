@@ -16,14 +16,14 @@ class gline(genericcommand.genericcommand):
             line[1] = line[1][1:]
         mask = line[1][1:]
         mode = line[1][0]
+        if len(line) == 4:
+            ts = self._state.ts()
+        else:
+            ts = int(line[3])
         
         if mode == "+":
             duration = int(line[2])
-            if len(line) == 4:
-                ts = self._state.ts()
-            else:
-                ts = int(line[3])
             description = line[-1]
-            self._state.addGline(origin, mask, target, duration + ts, description)
+            self._state.addGline(origin, mask, target, duration + self._state.ts(), ts, description)
         else:
-            self._state.removeGline(origin, mask, target)
+            self._state.removeGline(origin, mask, target, ts)

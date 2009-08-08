@@ -10,10 +10,10 @@ class StateDouble:
         self.rv = None
     def ts(self):
         return 1
-    def addJupe(self, origin, mask, target, expires, description):
-        self.rv = ('add', mask, expires)
-    def removeJupe(self, origin, mask, target):
-        self.rv = ('del', mask)
+    def addJupe(self, origin, server, target, expires, ts, reason):
+        self.rv = ('add', server, expires)
+    def removeJupe(self, origin, server, target, ts):
+        self.rv = ('del', server)
     def getServerID(self):
         return 1
 
@@ -23,13 +23,13 @@ class JupeTest(unittest.TestCase):
         s = StateDouble()
         c = p10.commands.jupe.jupe(s)
         c.handle((1,None), ['*', '+test.example.com','26','43','Test jupe'])
-        self.assertEquals(('add', 'test.example.com', 26+43), s.rv)
+        self.assertEquals(('add', 'test.example.com', 27), s.rv)
     
     def testForceAddJupe(self):
         s = StateDouble()
         c = p10.commands.jupe.jupe(s)
         c.handle((1,None), ['*', '!+test.example.com','26','43','Test jupe'])
-        self.assertEquals(('add', 'test.example.com', 26+43), s.rv)
+        self.assertEquals(('add', 'test.example.com', 27), s.rv)
     
     def testRemoveJupe(self):
         s = StateDouble()

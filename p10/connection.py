@@ -29,7 +29,6 @@ import commands.motd
 import commands.names
 import commands.nick
 import commands.notice
-import commands.opmode
 import commands.part
 import commands.password
 import commands.ping

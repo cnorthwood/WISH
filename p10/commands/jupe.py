@@ -14,13 +14,13 @@ class jupe(genericcommand.genericcommand):
         # We don't care if it's forced or not
         if line[1][0] == "!":
             line[1] = line[1][1:]
-        mask = line[1][1:]
+        server = line[1][1:]
         mode = line[1][0]
+        ts = int(line[3])
         
         if mode == "+":
             duration = int(line[2])
-            ts = int(line[3])
             description = line[-1]
-            self._state.addJupe(origin, mask, target, duration + ts, description)
+            self._state.addJupe(origin, server, target, duration + self._state.ts(), ts, description)
         else:
-            self._state.removeJupe(origin, mask, target)
+            self._state.removeJupe(origin, server, target, ts)

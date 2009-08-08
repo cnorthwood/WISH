@@ -193,29 +193,42 @@ class state:
     # Jupes
     #
     
+    def jupes(self):
+        """ Returns a list of global jupes
+            The list of tuples (mask, description, expires, active, last modified time) """
+        self._cleanupJupes()
+        rj = []
+        for jupe in self._jupes:
+            if not self._jupes[jupe][4]:
+                rj.append((jupe, self._jupes[jupe][0], self._jupes[jupe][1], self._jupes[jupe][2], self._jupes[jupe][3]))
+        return rj
+    
+    def _deactivateJupe(self, jupe):
+        self._jupes[jupe] = (self._jupes[jupe][0], self._jupes[jupe][1], False, self._jupes[jupe][3], self._jupes[jupe][4])
+    
     def _cleanupJupes(self):
         for jupe in self._jupes.copy():
-            if self._jupes[jupe][0] < self.ts():
-                del self._jupes[jupe]
+            if self._jupes[jupe][1] < self.ts():
+                self._deactivateJupe(jupe)
     
     def isJuped(self, server):
         self._cleanupJupes()
         if server in self._jupes:
-            return self._jupes[server]
+            return self._jupes[server][2]
         else:
-            return None
+            return False
     
-    def addJupe(self, origin, target, server, expire, reason):
+    def addJupe(self, origin, server, target, expire, ts, reason):
         if target == None or target == self.getServerID():
-            self._jupes[server] = (expire, reason)
+            self._jupes[server] = (reason, expire, True, ts, target == self.getServerID())
         self._callback(self.CALLBACK_JUPEADD, (origin, target, server, expire, reason))
     
-    def removeJupe(self, origin, target, server):
+    def removeJupe(self, origin, server, target, ts):
         if target == None or target == self.getServerID():
             self.lock.acquire()
             try:
                 if server in self._jupes:
-                    del self._jupes[server]
+                    self._deactivateJupe(server)
             finally:
                 self.lock.release()
         self._callback(self.CALLBACK_JUPEREMOVE, (origin, target, server))
@@ -711,6 +724,16 @@ class state:
     # G-lines
     #
     
+    def glines(self):
+        """ Returns a list of global g-lines
+            The list of tuples (mask, description, expires, active, last modified time) """
+        self._cleanupGlines()
+        rg = []
+        for gline in self._glines:
+            if not self._glines[gline][4]:
+                rg.append((gline, self._glines[gline][0], self._glines[gline][1], self._glines[gline][2], self._glines[gline][3]))
+        return rg
+    
     def _cleanupGlines(self):
         """ Remove expired g-lines """
         # Make shallow copy of dictionary so we can modify it during iteration
@@ -719,15 +742,19 @@ class state:
             for gline in self._glines.copy():
                 # Remove expired g-lines
                 if self._glines[gline][1] < self.ts():
-                    del self._glines[gline]
+                    self._deactivateGline(gline)
         finally:
             self.lock.release()
     
-    def addGline(self, origin, mask, target, expires, description):
+    def _deactivateGline(self, gline):
+        """ Deactivate a g-line """
+        self._glines[gline] = (self._glines[gline][0], self._glines[gline][1], False, self._glines[gline][3], self._glines[gline][4])
+    
+    def addGline(self, origin, mask, target, expires, ts, description):
         """ Add a g-line """
         # TODO: Check if origin can actually set g-lines
         if target == None or target == self.getServerID():
-            self._glines[mask] = (description, expires)
+            self._glines[mask] = (description, expires, True, ts, target == self.getServerID())
         self._callback(self.CALLBACK_GLINEADD, (origin, mask, target, expires, description))
     
     def isGlined(self, host):
@@ -737,13 +764,13 @@ class state:
             self._cleanupGlines()
             for mask in self._glines:
                 if fnmatch.fnmatch(host, mask):
-                    return self._glines[mask]
+                    return self._glines[mask][2]
                 else:
-                    return None
+                    return False
         finally:
             self.lock.release()
     
-    def removeGline(self, origin, mask, target):
+    def removeGline(self, origin, mask, target, ts):
         """ Remove a g-line """
         # TODO: Check if origin can actually remove g-lines
         self.lock.acquire()
@@ -753,7 +780,7 @@ class state:
                 for gline in self._glines.copy():
                     # Remove any g-lines that match that mask
                     if fnmatch.fnmatch(gline, mask):
-                        del self._glines[gline]
+                        self._deactivateGline(gline)
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_GLINEREMOVE, (origin, mask, target))

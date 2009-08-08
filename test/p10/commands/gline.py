@@ -10,9 +10,9 @@ class StateDouble:
         self.rv = None
     def ts(self):
         return 1
-    def addGline(self, origin, mask, target, expires, description):
+    def addGline(self, origin, mask, target, expires, ts, description):
         self.rv = ('add', mask, expires)
-    def removeGline(self, origin, mask, target):
+    def removeGline(self, origin, mask, target, ts):
         self.rv = ('del', mask)
     def getServerID(self):
         return 1
@@ -23,13 +23,13 @@ class GlineTest(unittest.TestCase):
         s = StateDouble()
         c = p10.commands.gline.gline(s)
         c.handle((1,None), ['*', '+test!foo@example.com','26','43','Test gline'])
-        self.assertEquals(('add', 'test!foo@example.com', 26+43), s.rv)
+        self.assertEquals(('add', 'test!foo@example.com', 27), s.rv)
     
     def testForceAddGline(self):
         s = StateDouble()
         c = p10.commands.gline.gline(s)
         c.handle((1,None), ['*', '!+test!foo@example.com','26','43','Test gline'])
-        self.assertEquals(('add', 'test!foo@example.com', 26+43), s.rv)
+        self.assertEquals(('add', 'test!foo@example.com', 27), s.rv)
     
     def testRemoveGline(self):
         s = StateDouble()

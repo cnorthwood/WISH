@@ -90,6 +90,12 @@ class ConnectionDouble:
         self.callbacks.append("MOTD")
     def callbackNames(self, (origin, target, channel)):
         self.callbacks.append("Names")
+    def callbackTopic(self, (origin, channel, topic, topic_ts, channel_ts)):
+        self.callbacks.append("Topic")
+    def callbackSilenceAdd(self, (numeric, mask)):
+        self.callbacks.append("SilenceAdd")
+    def callbackSilenceRemove(self, (numeric, mask)):
+        self.callbacks.append("SilenceRemove")
 
 class StateTest(unittest.TestCase):
     
@@ -132,6 +138,9 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_REQUESTLINKS, n.callbackLinks)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTMOTD, n.callbackMOTD)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTNAMES, n.callbackNames)
+        s.registerCallback(irc.state.state.CALLBACK_CHANNELTOPIC, n.callbackTopic)
+        s.registerCallback(irc.state.state.CALLBACK_SILENCEADD, n.callbackSilenceAdd)
+        s.registerCallback(irc.state.state.CALLBACK_SILENCEREMOVE, n.callbackSilenceRemove)
         return n
     
     def testAuthentication(self):
@@ -1478,6 +1487,116 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
         self.assertRaises(p10.parser.ProtocolError, s.sendChannelUsers, (1,1), (1, None), "#test")
+        self.assertEquals([], n.callbacks)
+    
+    def testNumeric2Nick(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertEquals("test", s.numeric2nick((1,1)))
+    
+    def testSelfServerNumeric2Nick(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEquals("example.com", s.numeric2nick((1,None)))
+    
+    def testServerNumeric2Nick(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+        self.assertEquals("test.example.org", s.numeric2nick((2,None)))
+    
+    def testChangeTopic(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        n = self._setupCallbacks(s)
+        self.assertEquals("", s.channels["#test"].topic)
+        s.changeTopic((1,1), "#test", "New topic", 19, 18)
+        self.assertEquals("New topic", s.channels["#test"].topic)
+        self.assertEquals("test", s.channels["#test"].topic_changer)
+        self.assertEquals(19, s.channels["#test"].topic_ts)
+        self.assertEquals(["Topic"], n.callbacks)
+    
+    def testChangeTopicOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.changeTopic, (1,1), "#test", "New topic", 19, 18)
+        self.assertEquals([], n.callbacks)
+    
+    def testChangeTopicChannelExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.changeTopic, (1,1), "#test", "New topic", 19, 18)
+        self.assertEquals([], n.callbacks)
+    
+    def testChangeTopicDisregardOlderMessages(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        n = self._setupCallbacks(s)
+        self.assertEquals("", s.channels["#test"].topic)
+        s.changeTopic((1,1), "#test", "New topic", 162, 18)
+        s.changeTopic((1,1), "#test", "Old topic", 19, 18)
+        self.assertEquals("New topic", s.channels["#test"].topic)
+        self.assertEquals("test", s.channels["#test"].topic_changer)
+        self.assertEquals(162, s.channels["#test"].topic_ts)
+        self.assertEquals(["Topic"], n.callbacks)
+    
+    def testChangeTopicDisregardMessagesForNewerChannel(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        n = self._setupCallbacks(s)
+        self.assertEquals("", s.channels["#test"].topic)
+        s.changeTopic((1,1), "#test", "New topic", 19, 18)
+        s.changeTopic((1,1), "#test", "Topic for younger channel", 162, 38)
+        self.assertEquals("New topic", s.channels["#test"].topic)
+        self.assertEquals("test", s.channels["#test"].topic_changer)
+        self.assertEquals(19, s.channels["#test"].topic_ts)
+        self.assertEquals(["Topic"], n.callbacks)
+    
+    def testSilenceAdd(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertFalse(s.users[(1,1)].isSilenced("test!foo@bar.example.com"))
+        s.addSilence((1,1), "*!*@*.example.com")
+        self.assertTrue(s.users[(1,1)].isSilenced("test!foo@bar.example.com"))
+        self.assertEquals(["SilenceAdd"], n.callbacks)
+    
+    def testSilenceAddExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.addSilence, (1,1), "*!*@*.example.com")
+        self.assertEquals([], n.callbacks)
+    
+    def testSilenceRemove(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.removeSilence((1,1), "*!*@*.example.com")
+        self.assertFalse(s.users[(1,1)].isSilenced("test!foo@bar.example.com"))
+        n = self._setupCallbacks(s)
+        s.addSilence((1,1), "*!*@*.example.com")
+        self.assertTrue(s.users[(1,1)].isSilenced("test!foo@bar.example.com"))
+        s.removeSilence((1,1), "*!*@*.example.com")
+        self.assertFalse(s.users[(1,1)].isSilenced("test!foo@bar.example.com"))
+        self.assertEquals(["SilenceAdd", "SilenceRemove"], n.callbacks)
+    
+    def testSilenceRemoveExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.removeSilence, (1,1), "*!*@*.example.com")
         self.assertEquals([], n.callbacks)
 
 def main():

@@ -111,6 +111,8 @@ class state:
     CALLBACK_AUTHENTICATE = "Authenticate"
     CALLBACK_AWAY = "Away"
     CALLBACK_BACK = "Back"
+    CALLBACK_SILENCEADD = "SilenceAdd"
+    CALLBACK_SILENCEREMOVE = "SilenceRemove"
     CALLBACK_CHANNELCREATE = "ChannelCreate"
     CALLBACK_CHANNELDESTROY = "ChannelDestroy"
     CALLBACK_CHANNELJOIN = "ChannelJoin"
@@ -128,6 +130,7 @@ class state:
     CALLBACK_CHANNELVOICE = "ChannelVoice"
     CALLBACK_CHANNELDEVOICE = "ChannelDevoice"
     CALLBACK_CHANNELCLEARVOICES = "ChannelClearVoices"
+    CALLBACK_CHANNELTOPIC = "ChannelTopic"
     CALLBACK_GLINEADD = "GlineAdd"
     CALLBACK_GLINEREMOVE = "GlineRemove"
     CALLBACK_INVITE = "Invite"
@@ -245,6 +248,12 @@ class state:
         for user in self.users:
             if nick == self.users[user].nickname:
                 return user
+    
+    def numeric2nick(self, numeric):
+        if self.userExists(numeric):
+            return self.users[numeric].nickname
+        elif self.serverExists(numeric[0]):
+            return self._servers[numeric[0]].name
     
     def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         """ Change state to include a new user """
@@ -371,6 +380,28 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_BACK, (numeric))
+    
+    def addSilence(self, numeric, mask):
+        self.lock.acquire()
+        try:
+            if self.userExists(numeric):
+                self.users[numeric].addSilence(mask)
+            else:
+                raise StateError("Silence added for a user that does not exist")
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_SILENCEADD, (numeric, mask))
+    
+    def removeSilence(self, numeric, mask):
+        self.lock.acquire()
+        try:
+            if self.userExists(numeric):
+                self.users[numeric].removeSilence(mask)
+            else:
+                raise StateError("Silence removed from a user that does not exist")
+        finally:
+            self.lock.release()
+        self._callback(self.CALLBACK_SILENCEREMOVE, (numeric, mask))
     
     #
     # Channel handling
@@ -526,6 +557,25 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_CHANNELBANCLEAR, (origin, name))
+    
+    def changeTopic(self, origin, channel, topic, topic_ts, channel_ts):
+        self.lock.acquire()
+        callback = False
+        try:
+            if self.userExists(origin) or self.serverExists(origin):
+                if self.channelExists(channel):
+                    # Disregard if new topic_ts is older than old one
+                    if topic_ts >= self.channels[channel].topic_ts and channel_ts <= self.channels[channel].ts:
+                        self.channels[channel].changeTopic(topic, topic_ts, self.numeric2nick(origin))
+                        callback = True
+                else:
+                    raise StateError("Topic change attempted on a channel that does not exist")
+            else:
+                raise StateError("Invalid origin attempted to change topic")
+        finally:
+            self.lock.release()
+        if callback:
+            self._callback(self.CALLBACK_CHANNELTOPIC, (origin, channel, topic, topic_ts, channel_ts))
     
     #
     # User channel events
@@ -801,6 +851,7 @@ class user:
     ts = 0
     away_reason = None
     invites = set()
+    silences = set()
     
     def __init__(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         self.numeric = numeric
@@ -817,6 +868,7 @@ class user:
         self.away_reason = None
         self.channels = set()
         self.invites = set()
+        self.silences = set()
     
     def auth(self, account):
         """ Mark this user as authenticated """
@@ -864,6 +916,19 @@ class user:
     
     def isInvited(self, channel):
         return channel in self.invites
+    
+    def addSilence(self, mask):
+        self.silences.add(mask)
+    
+    def removeSilence(self, mask):
+        self.silences = self.silences - set([mask])
+    
+    def isSilenced(self, mask):
+        """ Returns whether or not this user has silenced this host """
+        for silence in self.silences:
+            if fnmatch.fnmatch(mask, silence):
+                return True
+        return False
 
 class channel:
     """ Represents a channel internally """
@@ -874,6 +939,9 @@ class channel:
     zombies = set()
     modes = dict()
     bans = []
+    topic = ""
+    topic_changer = ""
+    topic_ts = 0
     
     def __init__(self, name, ts):
         self.name = name
@@ -882,6 +950,9 @@ class channel:
         self.zombies = set()
         self.modes = dict()
         self.bans = []
+        self.topic = ""
+        self.topic_changer = ""
+        self.topic_ts = 0
     
     def join(self, numeric, modes):
         """ Add a user to a channel """
@@ -984,6 +1055,11 @@ class channel:
     def clearVoices(self):
         for voice in self.voices():
             self.devoice(voice)
+    
+    def changeTopic(self, new_topic, ts, name):
+        self.topic = new_topic
+        self.topic_ts = ts
+        self.topic_changer = name
 
 class server:
     """ Internally represent a server """

@@ -108,6 +108,7 @@ class state:
     CALLBACK_USERMODECHANGE = "UserModeChange"
     CALLBACK_CHANGENICK = "ChangeNick"
     CALLBACK_NEWSERVER = "NewServer"
+    CALLBACK_SERVERQUIT = "Squit"
     CALLBACK_AUTHENTICATE = "Authenticate"
     CALLBACK_AWAY = "Away"
     CALLBACK_BACK = "Back"
@@ -181,6 +182,38 @@ class state:
         finally:
            self.lock.release()
         self._callback(self.CALLBACK_NEWSERVER, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description))
+    
+    def _getAllChildrenOf(self, numeric):
+        ret = self._servers[numeric].children
+        for child in self._servers[numeric].children:
+            ret = ret | self._getAllChildrenOf(child)
+        return ret
+    
+    def quitServer(self, origin, numeric, reason, ts):
+        """ A server splits from the network """
+        callback = False
+        self.lock.acquire()
+        try:
+            if self.serverExists(numeric[0]):
+                # Disregard bad TS's
+                if ts == 0 or ts == self._servers[numeric[0]].link_ts:
+                    # Build a set of all servers that will be lost in this split
+                    serverstogo = self._getAllChildrenOf(numeric[0])
+                    serverstogo.add(numeric[0])
+                    # Quit every user that is on these servers. Channels are automatically cleaned up by quit.
+                    for user in self.users.copy():
+                        if user[0] in serverstogo:
+                            self.quit(user, self.numeric2nick(numeric) + " split from the network", True)
+                    self._servers[origin[0]].children.remove(numeric[0])
+                    for server in serverstogo:
+                        del self._servers[server]
+                    callback = True
+            else:
+                raise StateError("Server that does not exist was just squitted")
+        finally:
+            self.lock.release()
+        if callback:
+            self._callback(self.CALLBACK_SERVERQUIT, (origin, numeric, reason, ts))
     
     def getNextHop(self, dest):
         if dest[0] == self.getServerID():
@@ -287,7 +320,7 @@ class state:
             self.lock.release()
         self._callback(self.CALLBACK_CHANNELPARTALL, (numeric))
     
-    def quit(self, numeric, reason):
+    def quit(self, numeric, reason, causedbysquit=False):
         self.lock.acquire()
         try:
             if self.userExists(numeric):
@@ -299,7 +332,7 @@ class state:
                 raise StateError("Unknown user tried to quit")
         finally:
             self.lock.release()
-        self._callback(self.CALLBACK_QUIT, (numeric, reason))
+        self._callback(self.CALLBACK_QUIT, (numeric, reason, causedbysquit))
     
     def kill(self, origin, target, path, reason):
         if target[0] == self.getServerID():

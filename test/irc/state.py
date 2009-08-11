@@ -22,6 +22,8 @@ class ConnectionDouble:
         self.callbacks.append("ChangeNick")
     def callbackNewServer(self, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)):
         self.callbacks.append("NewServer")
+    def callbackSquit(self, (origin, numeric, reason, ts)):
+        self.callbacks.append("Squit")
     def callbackAuthenticate(self, (origin, numeric, acname)):
         self.callbacks.append("Authenticate")
     def callbackAway(self, (numeric, reason)):
@@ -76,8 +78,9 @@ class ConnectionDouble:
         self.callbacks.append("ChannelPartZombie")
     def callbackChannelDestroy(self, (origin, channel, ts)):
         self.callbacks.append("DestroyChannel")
-    def callbackQuit(self, (numeric, reason)):
-        self.callbacks.append(("Quit", reason))
+    def callbackQuit(self, (numeric, reason, causedbysquit)):
+        if not causedbysquit:
+            self.callbacks.append(("Quit", reason))
     def callbackKill(self, (origin, target, path, reason)):
         self.callbacks.append(("Kill", path, reason))
     def callbackLusers(self, (origin, target, dummy)):
@@ -141,6 +144,7 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_CHANNELTOPIC, n.callbackTopic)
         s.registerCallback(irc.state.state.CALLBACK_SILENCEADD, n.callbackSilenceAdd)
         s.registerCallback(irc.state.state.CALLBACK_SILENCEREMOVE, n.callbackSilenceRemove)
+        s.registerCallback(irc.state.state.CALLBACK_SERVERQUIT, n.callbackSquit)
         return n
     
     def testAuthentication(self):
@@ -1598,6 +1602,109 @@ class StateTest(unittest.TestCase):
         n = self._setupCallbacks(s)
         self.assertRaises(irc.state.StateError, s.removeSilence, (1,1), "*!*@*.example.com")
         self.assertEquals([], n.callbacks)
+    
+    def testSquitRemoveServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        n = self._setupCallbacks(s)
+        self.assertTrue(s.serverExists(2))
+        s.quitServer((1, None), (2, None), "Test squit", 24)
+        self.assertFalse(s.serverExists(2))
+        self.assertEquals(["Squit"], n.callbacks)
+    
+    def testSquitIgnoreOlderTS(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        n = self._setupCallbacks(s)
+        self.assertTrue(s.serverExists(2))
+        s.quitServer((1, None), (2, None), "Test squit", 16)
+        self.assertTrue(s.serverExists(2))
+        s.quitServer((1, None), (2, None), "Test squit", 0)
+        self.assertFalse(s.serverExists(2))
+        self.assertEquals(["Squit"], n.callbacks)
+    
+    def testSquitRemoveServerExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.quitServer, (1, None), (2, None), "Test squit", 24)
+        self.assertEquals([], n.callbacks)
+    
+    def testSquitRemoveChildServers(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newServer((2, None), 3, "test2.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newServer((3, None), 4, "test3.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        n = self._setupCallbacks(s)
+        self.assertTrue(s.serverExists(2))
+        self.assertTrue(s.serverExists(3))
+        self.assertTrue(s.serverExists(4))
+        s.quitServer((1, None), (2, None), "Test squit", 24)
+        self.assertFalse(s.serverExists(2))
+        self.assertFalse(s.serverExists(3))
+        self.assertFalse(s.serverExists(4))
+        self.assertEquals(["Squit"], n.callbacks)
+    
+    def testSquitRemoveGrandChildServers(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newServer((2, None), 3, "test2.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        n = self._setupCallbacks(s)
+        self.assertTrue(s.serverExists(2))
+        self.assertTrue(s.serverExists(3))
+        s.quitServer((1, None), (2, None), "Test squit", 24)
+        self.assertFalse(s.serverExists(2))
+        self.assertFalse(s.serverExists(3))
+        self.assertEquals(["Squit"], n.callbacks)
+    
+    def testSquitRemoveUsers(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newServer((2, None), 3, "test2.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newUser((2, None), (2,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((3, None), (3,1), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.quitServer((1, None), (2, None), "Test squit", 24)
+        self.assertFalse(s.userExists((2,1)))
+        self.assertFalse(s.userExists((3,1)))
+        self.assertEquals(["Squit"], n.callbacks)
+    
+    def testSquitRemoveEmptyChannels(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newServer((2, None), 3, "test2.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newUser((2, None), (2,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((3, None), (3,1), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((2,1), "#test", 6)
+        n = self._setupCallbacks(s)
+        s.quitServer((1, None), (2, None), "Test squit", 24)
+        self.assertFalse(s.userExists((2,1)))
+        self.assertFalse(s.userExists((3,1)))
+        self.assertFalse(s.channelExists("#test"))
+        self.assertEquals(["Squit"], n.callbacks)
+    
+    def testSquitNoRemoveNonEmptyChannels(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newServer((2, None), 3, "test2.example.org", 1000, 0, 24, "P10", 1, "", "A testing server")
+        s.newUser((1, None), (1,1), "test3", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((2, None), (2,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((3, None), (3,1), "test2", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.createChannel((2,1), "#test", 6)
+        s.joinChannel((1,1), (1,1), "#test", [])
+        n = self._setupCallbacks(s)
+        s.quitServer((1, None), (2, None), "Test squit", 24)
+        self.assertFalse(s.userExists((2,1)))
+        self.assertFalse(s.userExists((3,1)))
+        self.assertTrue(s.channelExists("#test"))
+        self.assertEquals(["Squit"], n.callbacks)
 
 def main():
     unittest.main()

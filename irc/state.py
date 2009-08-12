@@ -281,6 +281,9 @@ class state:
         for user in self.users:
             if nick == self.users[user].nickname:
                 return user
+        for server in self._servers:
+            if nick == self._servers[server].name:
+                return (server, None)
     
     def numeric2nick(self, numeric):
         if self.userExists(numeric):

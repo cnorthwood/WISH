@@ -1000,6 +1000,14 @@ class StateTest(unittest.TestCase):
         self.assertEquals((1,2), s.nick2numeric("test2"))
         self.assertEquals(None, s.nick2numeric("foo"))
     
+    def testGetNumericFromServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.org", 1000, 0, 0, "P10", 1, "", "A testing server")
+        self.assertEquals((1,None), s.nick2numeric("example.com"))
+        self.assertEquals((2,None), s.nick2numeric("test.example.org"))
+        self.assertEquals(None, s.nick2numeric("foo.example.com"))
+    
     def testInviteTargetMustExist(self):
         c = ConfigDouble()
         s = irc.state.state(c)

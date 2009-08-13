@@ -458,13 +458,15 @@ class state:
         oldusers = []
         self.lock.acquire()
         try:
-            if self.userExists(origin):
+            if self.userExists(origin) or self.serverExists(origin):
                 # Channel already exists
                 if name in self.channels:
                     # If our channel is older, disregard.
                     # If they're both the same, add new user as op
                     if self.channels[name].ts == ts:
-                        self.joinChannel(origin, origin, name, ["o"], ts)
+                        # If the origin is a server, we have no-one joining a channel
+                        if not self.serverExists(origin):
+                            self.joinChannel(origin, origin, name, ["o"], ts)
                         create_success = True
                         callback = False
                     # Their channel is older, overrides ours and merge users
@@ -476,13 +478,15 @@ class state:
                         for mode in self.channels[name].modes:
                             if mode[1] != False:
                                 self.changeChannelMode(origin, name, ("-" + mode[0], None))
-                        self.joinChannel(origin, origin, name, ["o"], ts)
+                        if not self.serverExists(origin):
+                            self.joinChannel(origin, origin, name, ["o"], ts)
                         create_success = True
                         callback = False
                 else:
                     self.channels[name] = channel(name, ts)
-                    self.channels[name].join(origin, ["o"])
-                    self.users[origin].join(name)
+                    if not self.serverExists(origin):
+                        self.channels[name].join(origin, ["o"])
+                        self.users[origin].join(name)
                     callback = True
                     create_success = True
             else:

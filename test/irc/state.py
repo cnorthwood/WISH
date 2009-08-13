@@ -314,6 +314,13 @@ class StateTest(unittest.TestCase):
         self.assertTrue(s.channelExists("#test"))
         self.assertFalse(s.channelExists("#example"))
     
+    def testCreateChannelServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        self.assertTrue(s.createChannel((1, None), "#test", 6))
+        self.assertTrue(s.channelExists("#test"))
+    
     def testCreateChannelCallback(self):
         c = ConfigDouble()
         s = irc.state.state(c)
@@ -355,7 +362,6 @@ class StateTest(unittest.TestCase):
         c = ConfigDouble()
         s = irc.state.state(c)
         self.assertRaises(irc.state.StateError, s.createChannel, (1,1), "#test", 6)
-        self.assertRaises(irc.state.StateError, s.createChannel, (1,None), "#test", 6)
         self.assertFalse(s.channelExists("#test"))
     
     def testChannelJoinerMustExist(self):

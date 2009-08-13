@@ -7,6 +7,12 @@ import threading
 # IRC masks are very similar to UNIX filename pattern matching, so we can cheat and use the same algorithm
 import fnmatch
 
+class DummyLock:
+    def acquire(self):
+        return True
+    def release(self):
+        return True
+
 class state:
     """ Holds the state for the current connection """
     
@@ -33,7 +39,8 @@ class state:
         self.maxClientNumerics = dict({self.getServerID(): 262143})
         self._glines = dict()
         self._jupes = dict()
-        self.lock = threading.RLock()
+        #self.lock = threading.RLock()
+        self.lock = DummyLock()
         self._callbacks = dict()
     
     def getServerID(self):

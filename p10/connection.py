@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import threading
+import asyncore
+import base64
 import parser
 import commands.account
 import commands.admin
@@ -57,21 +59,45 @@ import commands.who
 import commands.whois
 import commands.whowas
 
-class connection(threading.Thread):
+class connection(asyncore.dispatcher):
     """ Represents a connection upstream """
     
     _state = None
+    _connstate = None
     _parser = None
     _socket = None
+    numeric = None
+    _password = None
+    _upstream_password = None
+    _buffer = ""
+    _data = ""
+    
+    DISCONNECTED = 0
+    CONNECTED = 1
+    CHALLENGED = 2
+    HANDSHAKE = 3
+    AUTHENTICATED = 4
     
     def __init__(self, state):
         """ Sets up the state that this connection will alter """
         self._state = state
-        self._setupParser()
-        threading.Thread.__init__(self)
+        self._connstate = self.DISCONNECTED
+        self.numeric = None
+        self._upstream_password = None
+        self._password = None
+        self._parser =  parser.parser(state.maxClientNumerics)
+        self._buffer = ""
+        self._data = ""
+    
+    def start(self, endpoint, password):
+        # Create our socket
+        self.create_socket()
+        self.connect(endpoint)
+        self._password = password
+        self._connstate = CONNECTED
     
     def _setupParser(self):
-        p = parser.parser(self._state.maxClientNumerics)
+        p = self._parser
         p.registerHandler("AC", commands.account.account(self._state))
         p.registerHandler("AD", commands.admin.admin(self._state))
         p.registerHandler("LL", commands.asll.asll(self._state))
@@ -82,8 +108,8 @@ class connection(threading.Thread):
         p.registerHandler("C", commands.create.create(self._state))
         p.registerHandler("DE", commands.destruct.destruct(self._state))
         #p.registerHandler("DS", commands.desynch.desynch(self._state))
-        #p.registerHandler("EB", commands.end_of_burst.end_of_burst(self._state))
-        #p.registerHandler("EA", commands.eob_ack.eob_ack(self._state))
+        p.registerHandler("EB", commands.end_of_burst.end_of_burst(self._state))
+        p.registerHandler("EA", commands.eob_ack.eob_ack(self._state))
         p.registerHandler("Y", commands.error.error(self._state))
         p.registerHandler("GL", commands.gline.gline(self._state))
         p.registerHandler("F", commands.info.info(self._state))
@@ -101,14 +127,13 @@ class connection(threading.Thread):
         #p.registerHandler("O", commands.notice.notice(self._state))
         p.registerHandler("OM", commands.mode.mode(self._state)) # opmodes get handled exactly the same as normal modes
         p.registerHandler("L", commands.part.part(self._state))
-        #p.registerHandler("PASS", commands.password.password(self._state))
         #p.registerHandler("G", commands.ping.ping(self._state))
         #p.registerHandler("Z", commands.pong.pong(self._state))
         #p.registerHandler("P", commands.privmsg.privmsg(self._state))
         p.registerHandler("Q", commands.quit.quit(self._state))
         #p.registerHandler("RI", commands.rping.rping(self._state))
         #p.registerHandler("RO", commands.rpong.rpong(self._state))
-        p.registerHandler("S", commands.server.server(self._state))
+        p.registerHandler("S", commands.server.server(self._state, None))
         #p.registerHandler("SE", commands.settime.settime(self._state))
         p.registerHandler("U", commands.silence.silence(self._state))
         p.registerHandler("SQ", commands.squit.squit(self._state))
@@ -126,7 +151,7 @@ class connection(threading.Thread):
         #p.registerHandler("WV", commands.wallvoices.wallvoices(self._state))
         #p.registerHandler("H", commands.who.who(self._state))
         #p.registerHandler("W", commands.whois.whois(self._state))
-        #p.registerHandler("X", commands.whowas.whowas(self._state))
+        p.registerHandler("X", commands.whowas.whowas(self._state))
     
     def _sendLine(self, source_client, token, args):
         """ Send a line upsteam
@@ -134,7 +159,72 @@ class connection(threading.Thread):
             source_client: An integer, or None, representing which client is sending this message
             token: The token to be sent.
             args: An array of strings making up the message body """
-        self._socket.sendall(self._parser.build(source_client, token, args))
+        self._buffer.append(self._parser.build(source_client, token, args))
+    
+    def registerNumeric(self, numeric):
+        self.numeric = numeric
+    
+    def registerUpstreamPassword(self, password):
+        self._upstream_password = password
+    
+    def registerEOB(self):
+        self._sendLine((self.numeric, None), "EA", [])
+    
+    def error(self):
+        """ TODO: Handles errors on the connection """
+        pass
+    
+    def handle_connect(self):
+        
+        # Send pass and server - don't use the parser at this point
+        self._buffer.append("PASS :" + self._config.password + "\r\n")
+        self._buffer.append("SERVER " + self._state.getServerName() + " 1 " + self._state.ts() + " " + self._state.ts() + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerName() + "\r\n")
+        self._connstate = CHALLENGED
+        
+        # Set up stuff for authentication
+        self._parser.registerHandler("PASS", commands.password.password(self._state, self))
+        self._parser.registerHandler("ERROR", commands.error.error(self._state))
+    
+    def writable(self):
+        return (len(self.buffer) > 0)
+    
+    def handle_write(self):
+        sent = self.send(self.buffer)
+        self.buffer = self.buffer[sent:]
+        
+    def handle_close(self):
+        self.close()
+
+    def handle_read(self):
+        # Get this chunk
+        self._data.append(self.recv(512))
+        
+        # Get an entire line
+        nlb = self._data.find("\n")
+        while nlb > -1:
+            # Update state
+            if self._connstate == CHALLENGED and self._upstream_password != None:
+                # Check password
+                if self._password == self._upstream_password:
+                    self._connstate = HANDSHAKE
+                    self._parser.registerHandler("SERVER", commands.server.server(self._state, self))
+                    line = self._data[:nlb+1]
+                else:
+                    self.error("Password not as expected")
+            if self._connstate == HANDSHAKE and self.numeric != None:
+                self._connstate = AUTHENTICATED
+                self._setupParser()
+                # We're all good, send netburst
+                self._sendBurst()
+            if self._connstate < AUTHENTICATED:
+                self._parser.parsePreAuth(line)
+            else:
+                self._parser.parse(line)
+            # Get our next complete line if one exists
+            self._data = self._data[nlb:]
+            nlb = self._data.find("\n")
+
+
 
 class ConnectionError(Exception):
     """ When an error occurs in a connection """

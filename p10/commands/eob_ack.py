@@ -1,3 +1,6 @@
 #!/usr/bin/env python
 
-# TODO
+import genericcommand
+
+class eob_ack(genericcommand.genericcommand):
+    """ Acknowledges the EOB """

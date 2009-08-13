@@ -6,6 +6,12 @@ import p10.base64
 class server(genericcommand.genericcommand):
     """ Parses servers being introduced """
     
+    _connection = None
+    
+    def __init__(self, state, connection):
+        self._connection = connection
+        genericcommand.genericcommand.__init__(self, state)
+    
     def handle(self, origin, args):
         numeric = p10.base64.toInt(args[5][0:2])
         name = args[0]
@@ -23,3 +29,5 @@ class server(genericcommand.genericcommand):
                 modes.append((flag + mode, None))
         desc = args[-1]
         self._state.newServer(origin, numeric, name, maxclients, boot_ts, link_ts, protocol, hops, modes, desc)
+        if self._connection != None:
+            self._connection.registerNumeric(numeric)

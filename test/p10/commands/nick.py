@@ -29,7 +29,7 @@ class NickTest(unittest.TestCase):
     def testNewUserStateNewUserIsCalled(self):
         s = StateDouble()
         c = p10.commands.nick.nick(s)
-        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+g', 'AAAAAB', 'AAC', 'Test User'])
+        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+g', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
         self.assertEquals("test", s.newuserusername)
@@ -41,7 +41,7 @@ class NickTest(unittest.TestCase):
     def testNewUserNoModes(self):
         s = StateDouble()
         c = p10.commands.nick.nick(s)
-        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', 'AAAAAB', 'AAC', 'Test User'])
+        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
         self.assertEquals("test", s.newuserusername)
@@ -53,7 +53,7 @@ class NickTest(unittest.TestCase):
     def testNewUserModeArgs(self):
         s = StateDouble()
         c = p10.commands.nick.nick(s)
-        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+gh', 'test@example.com', 'AAAAAB', 'AAC', 'Test User'])
+        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+gh', 'test@example.com', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
         self.assertEquals("test", s.newuserusername)
@@ -65,7 +65,7 @@ class NickTest(unittest.TestCase):
     def testNewUserModeArgsMulti(self):
         s = StateDouble()
         c = p10.commands.nick.nick(s)
-        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+ghr', 'test@example.com', 'example', 'AAAAAB', 'AAC', 'Test User'])
+        c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+ghr', 'test@example.com', 'example', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
         self.assertEquals("test", s.newuserusername)

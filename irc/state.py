@@ -303,7 +303,6 @@ class state:
         # TODO: Do we have a name clash?
         self.lock.acquire()
         try:
-            print str(numeric)
             if self.serverExists(origin[0]):
                 if origin[1] == None:
                     if self.userExists(numeric):

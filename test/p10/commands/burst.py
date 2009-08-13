@@ -36,7 +36,7 @@ class BurstTest(unittest.TestCase):
         s = StateDouble()
         c = p10.commands.burst.burst(s)
         c.handle((1,None), ["#test", "8", "+c", "ABAAB"])
-        self.assertEquals([('c', None)], s.modes)
+        self.assertEquals([('+c', None)], s.modes)
         self.assertEquals([((1,1), "")], s.users)
         self.assertEquals(8, s.ts)
     
@@ -63,7 +63,7 @@ class BurstTest(unittest.TestCase):
         s = StateDouble()
         c = p10.commands.burst.burst(s)
         c.handle((1,None), ["#test", "8", "+l", "42", "ABAAB,ABAAD"])
-        self.assertEquals([("l","42")], s.modes)
+        self.assertEquals([("+l","42")], s.modes)
     
     def testCreateWithBans(self):
         s = StateDouble()
@@ -74,11 +74,11 @@ class BurstTest(unittest.TestCase):
     def testChannelCollisions(self):
         s = StateDouble()
         s.rv = False
-        s.modes = [('a', None)]
+        s.modes = [('+a', None)]
         s.users = [((1,2), ""), ((1,8), "")]
         c = p10.commands.burst.burst(s)
         c.handle((1,None), ["#test", "8", "+c", "ABAAB:ov", "%*!*@*.example.com"])
-        self.assertEquals([('a', None)], s.modes)
+        self.assertEquals([('+a', None)], s.modes)
         self.assertEquals([((1,2), ""), ((1,8), ""), ((1,1), "")], s.users)
         self.assertEquals([], s.bans)
         

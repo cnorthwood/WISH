@@ -217,7 +217,7 @@ class connection(asyncore.dispatcher):
                 # We're all good, send netburst
                 self._sendBurst()
             if self._connstate < AUTHENTICATED:
-                self._parser.parsePreAuth(line)
+                self._parser.parsePreAuth(line, (self._state.getServerID(), None))
             else:
                 self._parser.parse(line)
             # Get our next complete line if one exists

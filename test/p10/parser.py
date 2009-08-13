@@ -156,9 +156,9 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parsePreAuth("TEST foo bar\r\n")
+        p.parsePreAuth("TEST foo bar\r\n", (1, None))
         self.assertEquals(['foo','bar'], d.rcvd)
-        self.assertEquals(None, d.origin)
+        self.assertEquals((1, None), d.origin)
 
 def main():
     unittest.main()

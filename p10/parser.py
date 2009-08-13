@@ -51,14 +51,13 @@ class parser:
                 params.append(last_arg)
         return params
     
-    def parsePreAuth(self, string):
+    def parsePreAuth(self, string, origin):
         """ Parse strings before authentication is established """
         # Tidy up our line
         string = self._checkLineIsGood(string)
         
         # Break up into token and body
         high_level_parts = string.split(None, 1)
-        origin = None
         command = high_level_parts[0]
         if not command.isupper():
             raise ProtocolError('Command not in uppercase', string)

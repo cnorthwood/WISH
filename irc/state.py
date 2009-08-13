@@ -609,7 +609,7 @@ class state:
         self.lock.acquire()
         callback = False
         try:
-            if self.userExists(origin) or self.serverExists(origin):
+            if self.userExists(origin) or self.serverExists(origin[0]):
                 if self.channelExists(channel):
                     # Disregard if new topic_ts is older than old one
                     if topic_ts >= self.channels[channel].topic_ts and channel_ts <= self.channels[channel].ts:

@@ -12,6 +12,7 @@ class StateDouble:
     newuserip = 0
     newuserfullname = ""
     newnick = ""
+    maxClientNumerics = dict({1: 262143})
     def changeNick(self, origin, numeric, newnick, newts):
         self.newnick = newnick
     def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):

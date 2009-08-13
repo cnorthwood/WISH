@@ -17,6 +17,6 @@ class nick(genericcommand.genericcommand):
                         nextarg = nextarg + 1
                     else:
                         modes.append(('+' + mode, None))
-            self._state.newUser(origin, (origin[0], p10.base64.createNumeric(args[-2], self._state.maxClientNumerics)), args[0], args[3], args[4], modes, p10.base64.toInt(args[-3]), args[1], args[2], args[-1])
+            self._state.newUser(origin, (origin[0], p10.base64.parseNumeric(args[-2], self._state.maxClientNumerics)), args[0], args[3], args[4], modes, p10.base64.toInt(args[-3]), args[1], args[2], args[-1])
         else:
             self._state.changeNick(origin, origin, args[0], args[1])

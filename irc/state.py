@@ -303,6 +303,7 @@ class state:
         # TODO: Do we have a name clash?
         self.lock.acquire()
         try:
+            print str(numeric)
             if self.serverExists(origin[0]):
                 if origin[1] == None:
                     if self.userExists(numeric):
@@ -458,14 +459,14 @@ class state:
         oldusers = []
         self.lock.acquire()
         try:
-            if self.userExists(origin) or self.serverExists(origin):
+            if self.userExists(origin) or (origin[1] == None and self.serverExists(origin[0])):
                 # Channel already exists
                 if name in self.channels:
                     # If our channel is older, disregard.
                     # If they're both the same, add new user as op
                     if self.channels[name].ts == ts:
                         # If the origin is a server, we have no-one joining a channel
-                        if not self.serverExists(origin):
+                        if origin[1] != None:
                             self.joinChannel(origin, origin, name, ["o"], ts)
                         create_success = True
                         callback = False
@@ -478,13 +479,13 @@ class state:
                         for mode in self.channels[name].modes:
                             if mode[1] != False:
                                 self.changeChannelMode(origin, name, ("-" + mode[0], None))
-                        if not self.serverExists(origin):
+                        if origin[1] != None:
                             self.joinChannel(origin, origin, name, ["o"], ts)
                         create_success = True
                         callback = False
                 else:
                     self.channels[name] = channel(name, ts)
-                    if not self.serverExists(origin):
+                    if origin[1] != None:
                         self.channels[name].join(origin, ["o"])
                         self.users[origin].join(name)
                     callback = True
@@ -642,7 +643,7 @@ class state:
                 else:
                     self.createChannel(numeric, name, ts)
             else:
-                raise StateError("Unknown user attempted to join a channel")
+                raise StateError("Unknown user (" + str(numeric) + ") attempted to join a channel")
         finally:
             self.lock.release()
         if callback:

@@ -2,6 +2,8 @@
 
 import threading
 import asyncore
+import socket
+
 import base64
 import parser
 import commands.account
@@ -65,7 +67,6 @@ class connection(asyncore.dispatcher):
     _state = None
     _connstate = None
     _parser = None
-    _socket = None
     numeric = None
     _password = None
     _upstream_password = None
@@ -80,6 +81,7 @@ class connection(asyncore.dispatcher):
     
     def __init__(self, state):
         """ Sets up the state that this connection will alter """
+	asyncore.dispatcher.__init__(self)
         self._state = state
         self._connstate = self.DISCONNECTED
         self.numeric = None
@@ -88,13 +90,23 @@ class connection(asyncore.dispatcher):
         self._parser =  parser.parser(state.maxClientNumerics)
         self._buffer = ""
         self._data = ""
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
     
     def start(self, endpoint, password):
         # Create our socket
-        self.create_socket()
         self.connect(endpoint)
         self._password = password
-        self._connstate = CONNECTED
+        self._connstate = self.CONNECTED
+        print "Connecting to endpoint"        
+
+        # Send pass and server - don't use the parser at this point
+        self._buffer += "PASS :" + self._password + "\r\n"
+        self._buffer += "SERVER " + self._state.getServerName() + " 1 " + str(self._state.ts()) + " " + str(self._state.ts()) + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerName() + "\r\n"
+        self._connstate = self.CHALLENGED
+        
+        # Set up stuff for authentication
+        self._parser.registerHandler("PASS", commands.password.password(self._state, self))
+        self._parser.registerHandler("ERROR", commands.error.error(self._state))
     
     def _setupParser(self):
         p = self._parser
@@ -108,7 +120,7 @@ class connection(asyncore.dispatcher):
         p.registerHandler("C", commands.create.create(self._state))
         p.registerHandler("DE", commands.destruct.destruct(self._state))
         #p.registerHandler("DS", commands.desynch.desynch(self._state))
-        p.registerHandler("EB", commands.end_of_burst.end_of_burst(self._state))
+        p.registerHandler("EB", commands.end_of_burst.end_of_burst(self._state, self))
         p.registerHandler("EA", commands.eob_ack.eob_ack(self._state))
         p.registerHandler("Y", commands.error.error(self._state))
         p.registerHandler("GL", commands.gline.gline(self._state))
@@ -159,7 +171,7 @@ class connection(asyncore.dispatcher):
             source_client: An integer, or None, representing which client is sending this message
             token: The token to be sent.
             args: An array of strings making up the message body """
-        self._buffer.append(self._parser.build(source_client, token, args))
+        self._buffer += self._parser.build(source_client, token, args)
     
     def registerNumeric(self, numeric):
         self.numeric = numeric
@@ -168,60 +180,54 @@ class connection(asyncore.dispatcher):
         self._upstream_password = password
     
     def registerEOB(self):
-        self._sendLine((self.numeric, None), "EA", [])
+        self._sendLine((self._state.getServerID(), None), "EA", [])
     
     def error(self):
         """ TODO: Handles errors on the connection """
-        pass
-    
-    def handle_connect(self):
+        print "ERROR"
         
-        # Send pass and server - don't use the parser at this point
-        self._buffer.append("PASS :" + self._config.password + "\r\n")
-        self._buffer.append("SERVER " + self._state.getServerName() + " 1 " + self._state.ts() + " " + self._state.ts() + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerName() + "\r\n")
-        self._connstate = CHALLENGED
-        
-        # Set up stuff for authentication
-        self._parser.registerHandler("PASS", commands.password.password(self._state, self))
-        self._parser.registerHandler("ERROR", commands.error.error(self._state))
+    def _sendBurst(self):
+        self._sendLine((self._state.getServerID(), None), "EB", [])
     
     def writable(self):
-        return (len(self.buffer) > 0)
+        return (len(self._buffer) > 0)
     
     def handle_write(self):
-        sent = self.send(self.buffer)
-        self.buffer = self.buffer[sent:]
+        sent = self.send(self._buffer)
+        print "SENT: " + self._buffer[:sent]
+        self._buffer = self._buffer[sent:]
         
     def handle_close(self):
         self.close()
 
     def handle_read(self):
         # Get this chunk
-        self._data.append(self.recv(512))
-        
+        self._data += self.recv(512)
+
         # Get an entire line
         nlb = self._data.find("\n")
         while nlb > -1:
+            line = self._data[:nlb+1]
+            print "HANDLING: " + line
             # Update state
-            if self._connstate == CHALLENGED and self._upstream_password != None:
+            if self._connstate == self.CHALLENGED and self._upstream_password != None:
                 # Check password
                 if self._password == self._upstream_password:
-                    self._connstate = HANDSHAKE
+                    self._connstate = self.HANDSHAKE
                     self._parser.registerHandler("SERVER", commands.server.server(self._state, self))
-                    line = self._data[:nlb+1]
                 else:
                     self.error("Password not as expected")
-            if self._connstate == HANDSHAKE and self.numeric != None:
-                self._connstate = AUTHENTICATED
+            if self._connstate == self.HANDSHAKE and self.numeric != None:
+                self._connstate = self.AUTHENTICATED
                 self._setupParser()
                 # We're all good, send netburst
                 self._sendBurst()
-            if self._connstate < AUTHENTICATED:
+            if self._connstate < self.AUTHENTICATED:
                 self._parser.parsePreAuth(line, (self._state.getServerID(), None))
             else:
                 self._parser.parse(line)
             # Get our next complete line if one exists
-            self._data = self._data[nlb:]
+            self._data = self._data[nlb+1:]
             nlb = self._data.find("\n")
 
 

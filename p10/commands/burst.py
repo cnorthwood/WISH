@@ -21,9 +21,9 @@ class burst(genericcommand.genericcommand):
                         for mode in args[nextarg][1:]:
                             if mode == "k" or mode == "l":
                                 nextarg = nextarg + 1
-                                modes.append((mode, args[nextarg]))
+                                modes.append(("+" + mode, args[nextarg]))
                             else:
-                                modes.append((mode, None))
+                                modes.append(("+" + mode, None))
                         self._state.changeChannelMode(origin, args[0], modes)
                     nextarg = nextarg + 1
             

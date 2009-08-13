@@ -80,7 +80,10 @@ class parser:
         command = high_level_parts[1]
         if not command.isupper():
             raise ProtocolError('Command not in uppercase', string)
-        params = self._parseParams(high_level_parts[2])
+        if len(high_level_parts) > 2:
+            params = self._parseParams(high_level_parts[2])
+        else:
+            params = []
         
         # If this is an invalid command, pass it upwards
         try:
@@ -91,11 +94,14 @@ class parser:
     def build(self, origin, token, args):
         """ Build a string suitable for sending """
         # If the last argument is "long", package it for sending
-        if args[-1].find(" ") > -1:
-            build_last_arg = ":" + args[-1]
-            build_args = args[0:-1] + build_last_arg.split(" ")
+        if len(args) > 0:
+            if args[-1].find(" ") > -1:
+                 build_last_arg = ":" + args[-1]
+                 build_args = args[0:-1] + build_last_arg.split(" ")
+            else:
+                 build_args = args
         else:
-            build_args = args
+            build_args = []
         # Build the line
         # Future compatibility - only send \n
         ret = base64.createNumeric(origin) + " " + token + " " + " ".join(build_args) + "\n"

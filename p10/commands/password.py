@@ -3,7 +3,7 @@
 import genericcommand
 import p10.base64
 
-class end_of_burst(genericcommand.genericcommand):
+class password(genericcommand.genericcommand):
     """ Parses servers being introduced """
     
     _connection = None

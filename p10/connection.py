@@ -142,8 +142,8 @@ class connection(asyncore.dispatcher):
         #p.registerHandler("O", commands.notice.notice(self._state))
         p.registerHandler("OM", commands.mode.mode(self._state)) # opmodes get handled exactly the same as normal modes
         p.registerHandler("L", commands.part.part(self._state))
-        #p.registerHandler("G", commands.ping.ping(self._state))
-        #p.registerHandler("Z", commands.pong.pong(self._state))
+        p.registerHandler("G", commands.ping.ping(self._state))
+        p.registerHandler("Z", commands.pong.pong(self._state))
         #p.registerHandler("P", commands.privmsg.privmsg(self._state))
         p.registerHandler("Q", commands.quit.quit(self._state))
         #p.registerHandler("RI", commands.rping.rping(self._state))

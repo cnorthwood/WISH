@@ -30,7 +30,12 @@ state = irc.state.state(WISHConfig())
 
 # Define any upstreams below as so
 
-p10.connection.connection(state).start((HOSTNAME, PORT), PASSWORD)
+upstreams = [
+                p10.connection.connection(state).start((HOSTNAME, PORT), PASSWORD)
+            ]
 
 # Execute!
-asyncore.loop()
+while 1:
+    asyncore.loop()
+    for upstream in upstreams:
+        upstream.do_ping()

@@ -72,6 +72,7 @@ class connection(asyncore.dispatcher):
     _upstream_password = None
     _buffer = ""
     _data = ""
+    _last_pong = 0
     
     DISCONNECTED = 0
     CONNECTED = 1
@@ -81,7 +82,7 @@ class connection(asyncore.dispatcher):
     
     def __init__(self, state):
         """ Sets up the state that this connection will alter """
-	asyncore.dispatcher.__init__(self)
+        asyncore.dispatcher.__init__(self)
         self._state = state
         self._connstate = self.DISCONNECTED
         self.numeric = None
@@ -97,7 +98,7 @@ class connection(asyncore.dispatcher):
         self.connect(endpoint)
         self._password = password
         self._connstate = self.CONNECTED
-        print "Connecting to endpoint"        
+        print "Connecting to endpoint"
 
         # Send pass and server - don't use the parser at this point
         self._buffer += "PASS :" + self._password + "\r\n"
@@ -107,6 +108,8 @@ class connection(asyncore.dispatcher):
         # Set up stuff for authentication
         self._parser.registerHandler("PASS", commands.password.password(self._state, self))
         self._parser.registerHandler("ERROR", commands.error.error(self._state))
+        self._last_pong = self._state.ts()
+        self._last_ping = self._state.ts()
     
     def _setupParser(self):
         p = self._parser
@@ -182,6 +185,16 @@ class connection(asyncore.dispatcher):
     def registerEOB(self):
         self._sendLine((self._state.getServerID(), None), "EA", [])
     
+    def registerPing(self, arg):
+        self._sendLine((self._state.getServerID(), None), "Z", [self._state.getServerID(), arg])
+    
+    def registerPong(self):
+        self._last_pong = self._state.ts()
+    
+    def do_ping(self):
+        if self._last_ping < (self._state.ts() - 180):
+            self._sendLine((self._state.getServerID(), None), "G", ["P"])
+    
     def error(self):
         """ TODO: Handles errors on the connection """
         print "ERROR"
@@ -229,6 +242,10 @@ class connection(asyncore.dispatcher):
             # Get our next complete line if one exists
             self._data = self._data[nlb+1:]
             nlb = self._data.find("\n")
+        self.do_ping()
+        # Give a 60 second grace between ping being sent and timing out
+        if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
+            self.close()
 
 
 

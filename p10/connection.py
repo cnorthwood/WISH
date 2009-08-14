@@ -196,6 +196,7 @@ class connection(asyncore.dispatcher):
     def do_ping(self):
         if self._last_ping < (self._state.ts() - 180):
             self._sendLine((self._state.getServerID(), None), "G", ["P"])
+            self._last_ping = self._state.ts()
     
     def error(self):
         """ TODO: Handles errors on the connection """

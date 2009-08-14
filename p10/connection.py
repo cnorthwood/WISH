@@ -110,6 +110,8 @@ class connection(asyncore.dispatcher):
         self._parser.registerHandler("ERROR", commands.error.error(self._state))
         self._last_pong = self._state.ts()
         self._last_ping = self._state.ts()
+        
+        return self
     
     def _setupParser(self):
         p = self._parser

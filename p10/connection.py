@@ -188,7 +188,7 @@ class connection(asyncore.dispatcher):
         self._sendLine((self._state.getServerID(), None), "EA", [])
     
     def registerPing(self, arg):
-        self._sendLine((self._state.getServerID(), None), "Z", [self._state.getServerID(), arg])
+        self._sendLine((self._state.getServerID(), None), "Z", [str(self._state.getServerID()), arg])
     
     def registerPong(self):
         self._last_pong = self._state.ts()

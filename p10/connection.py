@@ -69,6 +69,7 @@ class connection(asyncore.dispatcher):
     _parser = None
     numeric = None
     _password = None
+    _upstream = None
     _upstream_password = None
     _buffer = ""
     _data = ""
@@ -80,38 +81,40 @@ class connection(asyncore.dispatcher):
     HANDSHAKE = 3
     AUTHENTICATED = 4
     
-    def __init__(self, state):
+    def __init__(self, endpoint, password, state):
         """ Sets up the state that this connection will alter """
         asyncore.dispatcher.__init__(self)
         self._state = state
         self._connstate = self.DISCONNECTED
         self.numeric = None
         self._upstream_password = None
-        self._password = None
+        self._password = password
+        self._upstream = endpoint
         self._parser =  parser.parser(state.maxClientNumerics)
         self._buffer = ""
         self._data = ""
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    def start(self, endpoint, password):
-        # Create our socket
-        self.connect(endpoint)
-        self._password = password
-        self._connstate = self.CONNECTED
-        print "Connecting to endpoint"
-
-        # Send pass and server - don't use the parser at this point
-        self._buffer += "PASS :" + self._password + "\r\n"
-        self._buffer += "SERVER " + self._state.getServerName() + " 1 " + str(self._state.ts()) + " " + str(self._state.ts()) + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerName() + "\r\n"
-        self._connstate = self.CHALLENGED
-        
-        # Set up stuff for authentication
-        self._parser.registerHandler("PASS", commands.password.password(self._state, self))
-        self._parser.registerHandler("ERROR", commands.error.error(self._state))
-        self._last_pong = self._state.ts()
-        self._last_ping = self._state.ts()
-        
-        return self
+    def start(self):
+        # Only do this if we're currently disconnected
+        if self._connstate == self.DISCONNECTED:
+            # Create our socket
+            self.numeric = None
+            self._upstream_password = None
+            self.connect(self._endpoint)
+            self._connstate = self.CONNECTED
+            print "Connecting to endpoint"
+    
+            # Send pass and server - don't use the parser at this point
+            self._buffer += "PASS :" + self._password + "\r\n"
+            self._buffer += "SERVER " + self._state.getServerName() + " 1 " + str(self._state.ts()) + " " + str(self._state.ts()) + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerName() + "\r\n"
+            self._connstate = self.CHALLENGED
+            
+            # Set up stuff for authentication
+            self._parser.registerHandler("PASS", commands.password.password(self._state, self))
+            self._parser.registerHandler("ERROR", commands.error.error(self._state))
+            self._last_pong = self._state.ts()
+            self._last_ping = self._state.ts()
     
     def _setupParser(self):
         p = self._parser
@@ -214,6 +217,7 @@ class connection(asyncore.dispatcher):
         self._buffer = self._buffer[sent:]
         
     def handle_close(self):
+        self._connstate = self.DISCONNECTED
         self.close()
 
     def handle_read(self):
@@ -248,7 +252,7 @@ class connection(asyncore.dispatcher):
         self.do_ping()
         # Give a 60 second grace between ping being sent and timing out
         if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
-            self.close()
+            self.handle_close()
 
 
 

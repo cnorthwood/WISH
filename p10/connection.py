@@ -101,7 +101,7 @@ class connection(asyncore.dispatcher):
             # Create our socket
             self.numeric = None
             self._upstream_password = None
-            self.connect(self._endpoint)
+            self.connect(self._upstream)
             self._connstate = self.CONNECTED
             print "Connecting to endpoint"
     

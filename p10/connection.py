@@ -190,7 +190,7 @@ class connection(asyncore.dispatcher):
         self._sendLine((self._state.getServerID(), None), "EA", [])
     
     def registerPing(self, arg):
-        self._sendLine((self._state.getServerID(), None), "Z", [str(self._state.getServerID()), arg])
+        self._sendLine((self._state.getServerID(), None), "Z", [base64.createNumeric((self._state.getServerID(), None)), arg])
         print "PING? PONG!"
     
     def registerPong(self):

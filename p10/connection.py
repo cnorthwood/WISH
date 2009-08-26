@@ -94,7 +94,7 @@ class connection(asyncore.dispatcher):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
     
     def _connect(self):
-        self.connect(endpoint)
+        self.connect(self._endpoint)
         self._connstate = self.CONNECTED
         print "Connecting to endpoint"
 

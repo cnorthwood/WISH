@@ -186,21 +186,25 @@ class connection(asyncore.dispatcher):
     
     def registerPing(self, arg):
         self._sendLine((self._state.getServerID(), None), "Z", [str(self._state.getServerID()), arg])
+        print "PING? PONG!"
     
     def registerPong(self):
         self._last_pong = self._state.ts()
+        print "PONG!"
     
     def do_ping(self):
         # Give a 60 second grace between ping being sent and timing out
         if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
-            self.close()
+            self.error("Ping Timeout")
         elif self._last_ping < (self._state.ts() - 180):
+            print "PING!"
             self._sendLine((self._state.getServerID(), None), "G", [base64.createNumeric((self._state.getServerID(), None))])
             self._last_ping = self._state.ts()
     
-    def error(self):
+    def error(self, reason):
         """ TODO: Handles errors on the connection """
-        print "ERROR"
+        print "ERROR: " + reason
+        self._sendLine((self._state.getServerID(), None), "Y" [reason])
         
     def _sendBurst(self):
         self._sendLine((self._state.getServerID(), None), "EB", [])
@@ -239,7 +243,10 @@ class connection(asyncore.dispatcher):
                 # We're all good, send netburst
                 self._sendBurst()
             if self._connstate < self.AUTHENTICATED:
-                self._parser.parsePreAuth(line, (self._state.getServerID(), None))
+                try:
+                    self._parser.parsePreAuth(line, (self._state.getServerID(), None))
+                except Exception, e:
+                    self.error(str(e))
             else:
                 self._parser.parse(line)
             # Get our next complete line if one exists

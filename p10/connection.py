@@ -66,6 +66,7 @@ class connection(asyncore.dispatcher):
     _connstate = None
     _parser = None
     numeric = None
+    _endpoint = None
     _password = None
     _upstream_password = None
     _buffer = ""
@@ -86,15 +87,14 @@ class connection(asyncore.dispatcher):
         self.numeric = None
         self._upstream_password = None
         self._password = None
+        self._endpoint = None
         self._parser =  parser.parser(state.maxClientNumerics)
         self._buffer = ""
         self._data = ""
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    def start(self, endpoint, password):
-        # Create our socket
+    def _connect(self):
         self.connect(endpoint)
-        self._password = password
         self._connstate = self.CONNECTED
         print "Connecting to endpoint"
 
@@ -108,7 +108,12 @@ class connection(asyncore.dispatcher):
         self._parser.registerHandler("ERROR", commands.error.error(self._state))
         self._last_pong = self._state.ts()
         self._last_ping = self._state.ts()
-        
+    
+    def start(self, endpoint, password):
+        # Create our socket
+        self._endpoint = endpoint
+        self._password = password
+        self._connect()
         return self
     
     def _setupParser(self):
@@ -219,6 +224,8 @@ class connection(asyncore.dispatcher):
         
     def handle_close(self):
         self.close()
+        # Now reconnect!
+        self._reconnect()
 
     def handle_read(self):
         # Get this chunk

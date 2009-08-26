@@ -2,7 +2,7 @@
 
 import time
 import p10.parser
-import threading
+#import threading
 
 # IRC masks are very similar to UNIX filename pattern matching, so we can cheat and use the same algorithm
 import fnmatch
@@ -55,7 +55,7 @@ class state:
     def getContactEmail(self):
         return self._config.contactEmail
     
-    def sendAdminInfo(self, origin, target):
+    def requestAdminInfo(self, origin, target):
         if self.userExists(origin):
             if target[1] == None:
                 self._callback(self.CALLBACK_REQUESTADMIN, (origin, target))
@@ -64,7 +64,7 @@ class state:
         else:
             raise StateError("Received a request for admin info from a non-existant user")
     
-    def sendServerInfo(self, origin, target):
+    def requestServerInfo(self, origin, target):
         if self.userExists(origin):
             if target[1] == None:
                 self._callback(self.CALLBACK_REQUESTINFO, (origin, target))
@@ -73,7 +73,7 @@ class state:
         else:
             raise StateError("Received a request for server info from a non-existant user")
     
-    def sendLusersInfo(self, origin, target, dummy):
+    def requestLusers(self, origin, target, dummy):
         if self.userExists(origin):
             if target[1] == None:
                 self._callback(self.CALLBACK_REQUESTLUSERS, (origin, target, dummy))
@@ -82,7 +82,7 @@ class state:
         else:
             raise StateError("Received a request for Luser info from a non-existant user")
     
-    def sendLinksInfo(self, origin, target, mask):
+    def requestLinks(self, origin, target, mask):
         if self.userExists(origin):
             if target[1] == None:
                 self._callback(self.CALLBACK_REQUESTLINKS, (origin, target, mask))
@@ -91,7 +91,7 @@ class state:
         else:
             raise StateError("Received a request for links info from a non-existant user")
     
-    def sendMOTD(self, origin, target):
+    def requestMOTD(self, origin, target):
         if self.userExists(origin):
             if target[1] == None:
                 self._callback(self.CALLBACK_REQUESTMOTD, (origin, target))
@@ -101,7 +101,13 @@ class state:
             raise StateError("Received a request for MOTD from a non-existant user")
     
     def requestVersion(self, origin, target):
-        pass
+        if self.userExists(origin):
+            if target[1] == None:
+                self._callback(self.CALLBACK_REQUESTVERSION, (origin, target))
+            else:
+                raise p10.parser.ProtocolError("Version can only be requested from servers")
+        else:
+            raise StateError("Received a request for version from a non-existant user")
     
     def requestStats(self, origin, target, stat, arg):
         pass
@@ -159,6 +165,7 @@ class state:
     CALLBACK_REQUESTLINKS = "RequestLinks"
     CALLBACK_REQUESTMOTD = "RequestMOTD"
     CALLBACK_REQUESTNAMES = "RequestNames"
+    CALLBACK_REQUESTVERSION = "RequestVersion"
     
     def registerCallback(self, type, callbackfn):
         if type in self._callbacks:
@@ -519,7 +526,7 @@ class state:
         """ Returns if a channel exists or not """
         return name in self.channels
     
-    def sendChannelUsers(self, origin, target, channel):
+    def requestChannelUsers(self, origin, target, channel):
         """ Callback for a request for a list of users on a channel (/names) """
         if self.userExists(origin):
             if self.channelExists(channel):

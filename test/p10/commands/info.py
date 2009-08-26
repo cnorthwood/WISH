@@ -11,7 +11,7 @@ class StateDouble:
     def __init__(self):
         self.insight = None
     
-    def sendServerInfo(self, origin, target):
+    def requestServerInfo(self, origin, target):
         self.insight = (origin, target)
 
 class InfoTest(unittest.TestCase):

@@ -11,7 +11,7 @@ class StateDouble:
     def __init__(self):
         self.insight = None
     
-    def sendChannelUsers(self, origin, target, channel):
+    def requestChannelUsers(self, origin, target, channel):
         self.insight = (origin, target, channel)
 
 class NamesTest(unittest.TestCase):

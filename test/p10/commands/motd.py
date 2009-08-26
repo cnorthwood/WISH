@@ -11,7 +11,7 @@ class StateDouble:
     def __init__(self):
         self.insight = None
     
-    def sendMOTD(self, origin, target):
+    def requestMOTD(self, origin, target):
         self.insight = (origin, target)
 
 class MOTDTest(unittest.TestCase):

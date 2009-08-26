@@ -8,4 +8,4 @@ class info(genericcommand.genericcommand):
     """ Returns information about the server """
     
     def handle(self, origin, args):
-        self._state.sendServerInfo(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics))
+        self._state.requestServerInfo(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics))

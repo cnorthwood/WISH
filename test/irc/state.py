@@ -1175,14 +1175,14 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        s.sendAdminInfo((1,1), (1, None))
+        s.requestAdminInfo((1,1), (1, None))
         self.assertEquals(["RequestAdmin"], n.callbacks)
     
     def testSendAdminCallbackOnlyIfOriginExists(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.sendAdminInfo, (1,19), (1, None))
+        self.assertRaises(irc.state.StateError, s.requestAdminInfo, (1,19), (1, None))
         self.assertEquals([], n.callbacks)
     
     def testSendAdminTargetMustBeServer(self):
@@ -1190,21 +1190,21 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.sendAdminInfo, (1,1), (1, 1))
+        self.assertRaises(p10.parser.ProtocolError, s.requestAdminInfo, (1,1), (1, 1))
         self.assertEquals([], n.callbacks)
     
     def testSendInfoCallback(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.sendServerInfo, (1,19), (1, None))
+        self.assertRaises(irc.state.StateError, s.requestServerInfo, (1,19), (1, None))
         self.assertEquals([], n.callbacks)
     
     def testSendInfoCallbackOnlyIfOriginExists(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.sendServerInfo, (1,19), (1, None))
+        self.assertRaises(irc.state.StateError, s.requestServerInfo, (1,19), (1, None))
         self.assertEquals([], n.callbacks)
     
     def testSendInfoTargetMustBeServer(self):
@@ -1212,7 +1212,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.sendServerInfo, (1,1), (1, 1))
+        self.assertRaises(p10.parser.ProtocolError, s.requestServerInfo, (1,1), (1, 1))
         self.assertEquals([], n.callbacks)
     
     def testKickLocalUser(self):
@@ -1382,14 +1382,14 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        s.sendLinksInfo((1,1), (1, None), "*.example.com")
+        s.requestLinks((1,1), (1, None), "*.example.com")
         self.assertEquals(["Links"], n.callbacks)
     
     def testSendLinksCallbackOriginExists(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.sendLinksInfo,(1,1), (1, None), "*.example.com")
+        self.assertRaises(irc.state.StateError, s.requestLinks,(1,1), (1, None), "*.example.com")
         self.assertEquals([], n.callbacks)
     
     def testSendLinksCallbackTargetIsServer(self):
@@ -1397,7 +1397,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.sendLinksInfo,(1,1), (1, 6), "*.example.com")
+        self.assertRaises(p10.parser.ProtocolError, s.requestLinks,(1,1), (1, 6), "*.example.com")
         self.assertEquals([], n.callbacks)
     
     def testSendLusersCallback(self):
@@ -1405,14 +1405,14 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        s.sendLusersInfo((1,1), (1, None), "Dummy")
+        s.requestLusers((1,1), (1, None), "Dummy")
         self.assertEquals(["Lusers"], n.callbacks)
     
     def testSendLusersCallbackOriginExists(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.sendLusersInfo,(1,1), (1, None), "dummy")
+        self.assertRaises(irc.state.StateError, s.requestLusers,(1,1), (1, None), "dummy")
         self.assertEquals([], n.callbacks)
     
     def testSendLusersCallbackTargetIsServer(self):
@@ -1420,7 +1420,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.sendLusersInfo,(1,1), (1, 6), "dummy")
+        self.assertRaises(p10.parser.ProtocolError, s.requestLusers,(1,1), (1, 6), "dummy")
         self.assertEquals([], n.callbacks)
     
     def testSendMOTDCallback(self):
@@ -1428,14 +1428,14 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        s.sendMOTD((1,1), (1, None))
+        s.requestMOTD((1,1), (1, None))
         self.assertEquals(["MOTD"], n.callbacks)
     
     def testSendMOTDCallbackOriginExists(self):
         c = ConfigDouble()
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.sendMOTD,(1,1), (1, None))
+        self.assertRaises(irc.state.StateError, s.requestMOTD,(1,1), (1, None))
         self.assertEquals([], n.callbacks)
     
     def testSendMOTDCallbackTargetIsServer(self):
@@ -1443,7 +1443,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.sendMOTD,(1,1), (1, 6))
+        self.assertRaises(p10.parser.ProtocolError, s.requestMOTD,(1,1), (1, 6))
         self.assertEquals([], n.callbacks)
     
     def testChangeUserMode(self):
@@ -1478,7 +1478,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 18)
         n = self._setupCallbacks(s)
-        s.sendChannelUsers((1,1), (1, None), "#test")
+        s.requestChannelUsers((1,1), (1, None), "#test")
         self.assertEquals(["Names"], n.callbacks)
     
     def testSendNamesCallbackOriginExists(self):
@@ -1487,7 +1487,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 18)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.sendChannelUsers, (1,6), (1, None), "#test")
+        self.assertRaises(irc.state.StateError, s.requestChannelUsers, (1,6), (1, None), "#test")
         self.assertEquals([], n.callbacks)
     
     def testSendNamesCallbackTargetIsServer(self):
@@ -1496,7 +1496,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 18)
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.sendChannelUsers, (1,1), (1, 6), "#test")
+        self.assertRaises(p10.parser.ProtocolError, s.requestChannelUsers, (1,1), (1, 6), "#test")
         self.assertEquals([], n.callbacks)
     
     def testSendNamesCallbackChannelisChannel(self):
@@ -1504,7 +1504,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.sendChannelUsers, (1,1), (1, None), "#test")
+        self.assertRaises(p10.parser.ProtocolError, s.requestChannelUsers, (1,1), (1, None), "#test")
         self.assertEquals([], n.callbacks)
     
     def testNumeric2Nick(self):

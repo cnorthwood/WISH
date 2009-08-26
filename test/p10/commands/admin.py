@@ -11,7 +11,7 @@ class StateDouble:
     def __init__(self):
         self.insight = None
     
-    def sendAdminInfo(self, origin, target):
+    def requestAdminInfo(self, origin, target):
         self.insight = (origin, target)
 
 class AdminTest(unittest.TestCase):

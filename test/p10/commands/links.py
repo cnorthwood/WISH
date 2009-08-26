@@ -11,7 +11,7 @@ class StateDouble:
     def __init__(self):
         self.insight = None
     
-    def sendLinksInfo(self, origin, target, mask):
+    def requestLinks(self, origin, target, mask):
         self.insight = (origin, target, mask)
 
 class LinksTest(unittest.TestCase):

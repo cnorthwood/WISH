@@ -11,7 +11,7 @@ class StateDouble:
     def __init__(self):
         self.insight = None
     
-    def sendLusersInfo(self, origin, target, dummy):
+    def requestLusers(self, origin, target, dummy):
         self.insight = (origin, target, dummy)
 
 class LusersTest(unittest.TestCase):

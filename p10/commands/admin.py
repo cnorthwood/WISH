@@ -7,4 +7,4 @@ class admin(genericcommand.genericcommand):
     """ Returns information about the server """
     
     def handle(self, origin, args):
-        self._state.sendAdminInfo(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics))
+        self._state.requestAdminInfo(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics))

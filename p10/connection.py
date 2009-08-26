@@ -248,7 +248,10 @@ class connection(asyncore.dispatcher):
                 except Exception, e:
                     self.error(str(e))
             else:
-                self._parser.parse(line)
+                try:
+                    self._parser.parse(line)
+                except Exception, e:
+                    self.error(str(e))
             # Get our next complete line if one exists
             self._data = self._data[nlb+1:]
             nlb = self._data.find("\n")

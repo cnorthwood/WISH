@@ -15,7 +15,6 @@ import commands.clearmode
 import commands.connect
 import commands.create
 import commands.destruct
-import commands.desynch
 import commands.end_of_burst
 import commands.eob_ack
 import commands.error
@@ -57,7 +56,6 @@ import commands.wallchops
 import commands.wallops
 import commands.wallusers
 import commands.wallvoices
-import commands.who
 import commands.whois
 import commands.whowas
 
@@ -124,7 +122,7 @@ class connection(asyncore.dispatcher):
         p.registerHandler("CO", commands.connect.connect(self._state))
         p.registerHandler("C", commands.create.create(self._state))
         p.registerHandler("DE", commands.destruct.destruct(self._state))
-        #p.registerHandler("DS", commands.desynch.desynch(self._state))
+        p.registerHandler("DS", commands.wallops.wallops(self._state))
         p.registerHandler("EB", commands.end_of_burst.end_of_burst(self._state, self))
         p.registerHandler("EA", commands.eob_ack.eob_ack(self._state))
         p.registerHandler("Y", commands.error.error(self._state))
@@ -141,12 +139,12 @@ class connection(asyncore.dispatcher):
         p.registerHandler("MO", commands.motd.motd(self._state))
         p.registerHandler("E", commands.names.names(self._state))
         p.registerHandler("N", commands.nick.nick(self._state))
-        #p.registerHandler("O", commands.notice.notice(self._state))
+        p.registerHandler("O", commands.notice.notice(self._state))
         p.registerHandler("OM", commands.mode.mode(self._state)) # opmodes get handled exactly the same as normal modes
         p.registerHandler("L", commands.part.part(self._state))
         p.registerHandler("G", commands.ping.ping(self._state, self))
         p.registerHandler("Z", commands.pong.pong(self._state, self))
-        #p.registerHandler("P", commands.privmsg.privmsg(self._state))
+        p.registerHandler("P", commands.privmsg.privmsg(self._state))
         p.registerHandler("Q", commands.quit.quit(self._state))
         #p.registerHandler("RI", commands.rping.rping(self._state))
         #p.registerHandler("RO", commands.rpong.rpong(self._state))
@@ -162,12 +160,11 @@ class connection(asyncore.dispatcher):
         #p.registerHandler("TR", commands.trace.trace(self._state))
         #p.registerHandler("UP", commands.uping.uping(self._state))
         #p.registerHandler("V", commands.version.version(self._state))
-        #p.registerHandler("WC", commands.wallchops.wallchops(self._state))
-        #p.registerHandler("WA", commands.wallops.wallops(self._state))
-        #p.registerHandler("WU", commands.wallusers.wallusers(self._state))
-        #p.registerHandler("WV", commands.wallvoices.wallvoices(self._state))
-        #p.registerHandler("H", commands.who.who(self._state))
-        #p.registerHandler("W", commands.whois.whois(self._state))
+        p.registerHandler("WC", commands.wallchops.wallchops(self._state))
+        p.registerHandler("WA", commands.wallops.wallops(self._state))
+        p.registerHandler("WU", commands.wallusers.wallusers(self._state))
+        p.registerHandler("WV", commands.wallvoices.wallvoices(self._state))
+        p.registerHandler("W", commands.whois.whois(self._state))
         p.registerHandler("X", commands.whowas.whowas(self._state))
     
     def _sendLine(self, source_client, token, args):
@@ -194,8 +191,11 @@ class connection(asyncore.dispatcher):
         self._last_pong = self._state.ts()
     
     def do_ping(self):
-        if self._last_ping < (self._state.ts() - 180):
-            self._sendLine((self._state.getServerID(), None), "G", ["P"])
+        # Give a 60 second grace between ping being sent and timing out
+        if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
+            self.close()
+        elif self._last_ping < (self._state.ts() - 180):
+            self._sendLine((self._state.getServerID(), None), "G", [base64.createNumeric((self._state.getServerID(), None), self._state.maxClientNumerics)])
             self._last_ping = self._state.ts()
     
     def error(self):
@@ -246,9 +246,6 @@ class connection(asyncore.dispatcher):
             self._data = self._data[nlb+1:]
             nlb = self._data.find("\n")
         self.do_ping()
-        # Give a 60 second grace between ping being sent and timing out
-        if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
-            self.close()
 
 
 

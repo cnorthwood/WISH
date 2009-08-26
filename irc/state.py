@@ -232,6 +232,12 @@ class state:
                 if dest[0] in server.children:
                     return server.numeric
     
+    def registerPing(self, origin, source, target):
+        pass
+    
+    def registerPong(self, origin, source, target):
+        pass
+    
     #
     # Jupes
     #
@@ -295,7 +301,7 @@ class state:
     def numeric2nick(self, numeric):
         if self.userExists(numeric):
             return self.users[numeric].nickname
-        elif self.serverExists(numeric[0]):
+        elif self.serverExists(numeric[0]) and numeric[1] == None:
             return self._servers[numeric[0]].name
     
     def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
@@ -445,6 +451,9 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_SILENCEREMOVE, (numeric, mask))
+    
+    def requestWhois(self, origin, target, search):
+        pass
     
     #
     # Channel handling
@@ -816,6 +825,28 @@ class state:
         finally:
             self.lock.release()
         self._callback(self.CALLBACK_INVITE, (origin, target, channel))
+    
+    #
+    # Messages
+    #
+    
+    def privmsg(self, origin, target, message):
+        pass
+    
+    def notice(self, origin, target, message):
+        pass
+    
+    def wallops(self, origin, message):
+        pass
+    
+    def wallusers(self, origin, message):
+        pass
+    
+    def wallvoice(self, origin, channel, message):
+        pass
+    
+    def wallchops(self, origin, channel, message):
+        pass
     
     #
     # G-lines

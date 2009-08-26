@@ -18,7 +18,7 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parse(":testuser TEST foo\r\n")
+        p.parse("ABAAB TEST foo\r\n")
         self.assertEquals(['foo'], d.rcvd)
     
     def testBuildSimpleLineSingleArg(self):
@@ -31,7 +31,7 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parse(":testuser TEST foo bar\r\n")
+        p.parse("ABAAB TEST foo bar\r\n")
         self.assertEquals(['foo','bar'], d.rcvd)
         
     def testBuildSimpleLineTwoArg(self):
@@ -44,20 +44,20 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parse(":testuser TEST foo\n")
+        p.parse("ABAAB TEST foo\n")
         self.assertEquals(['foo'], d.rcvd)
         
     def testRejectBadLineEndings(self):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        self.assertRaises(p10.parser.ParseError, p.parse, ":testuser TEST foo")
+        self.assertRaises(p10.parser.ParseError, p.parse, "ABAAB TEST foo")
     
     def testLongArg(self):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parse(":testuser TEST :foo bar\r\n")
+        p.parse("ABAAB TEST :foo bar\r\n")
         self.assertEquals(['foo bar'], d.rcvd)
     
     def testBuildLongArg(self):
@@ -70,7 +70,7 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parse(":testuser TEST baz :foo bar\r\n")
+        p.parse("ABAAB TEST baz :foo bar\r\n")
         self.assertEquals(['baz', 'foo bar'], d.rcvd)
     
     def testBuildLongArgWithShort(self):
@@ -83,7 +83,7 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parse(":testuser TEST b:az :foo bar\r\n")
+        p.parse("ABAAB TEST b:az :foo bar\r\n")
         self.assertEquals(['b:az', 'foo bar'], d.rcvd)
     
     def testProtectAgainstLongArgsInBuild(self):
@@ -94,13 +94,13 @@ class P10ParserTest(unittest.TestCase):
     
     def testRejectUnknownCommands(self):
         p = p10.parser.parser(dict({1: 262143}))
-        self.assertRaises(p10.parser.ParseError, p.parse, ":testuser TEST foo\r\n")
+        self.assertRaises(p10.parser.ParseError, p.parse, "ABAAB TEST foo\r\n")
     
     def testRejectLongLine(self):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        self.assertRaises(p10.parser.ProtocolError, p.parse, ":testuser TEST baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar\r\n")
+        self.assertRaises(p10.parser.ProtocolError, p.parse, "ABAAB TEST baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar baz foo bar\r\n")
     
     def testNoBuildLongLine(self):
         p = p10.parser.parser(dict({1: 262143}))
@@ -112,7 +112,7 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        p.parse(":testuser TEST baz :foo bar: bar bar foo\n")
+        p.parse("ABAAB TEST baz :foo bar: bar bar foo\n")
         self.assertEquals(['baz', 'foo bar: bar bar foo'], d.rcvd)
         
     def testBuildFirstLongArg(self):
@@ -125,7 +125,7 @@ class P10ParserTest(unittest.TestCase):
         p = p10.parser.parser(dict({1: 262143}))
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
-        self.assertRaises(p10.parser.ProtocolError, p.parse, ":testuser test foo\r\n")
+        self.assertRaises(p10.parser.ProtocolError, p.parse, "ABAAB test foo\r\n")
         
     def testNoLowercaseCommand(self):
         p = p10.parser.parser(dict({1: 262143}))

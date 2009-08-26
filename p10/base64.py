@@ -126,6 +126,8 @@ def parseNumeric(numeric, maxclient):
     elif len(numeric) == 5:
         server = toInt(numeric[0:2])
         return (server, toInt(numeric[2:5]) & maxclient[server])
+    else:
+        raise Base64Error("Bad length for numeric", numeric)
 
 def createNumeric((server, client)):
     """ Create a numeric from a pair of integers - with the first representing the server numeric, the second the client.

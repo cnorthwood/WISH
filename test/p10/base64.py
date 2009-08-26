@@ -13,6 +13,9 @@ class Base64Test(unittest.TestCase):
     def testRejectInvalidChars(self):
         self.assertRaises(p10.base64.Base64Error, p10.base64.toInt, '#')
     
+    def testRejectInvalidLength(self):
+        self.assertRaises(p10.base64.Base64Error, p10.base64.parseNumeric, 'AAABBB', dict({0: 262143}))
+    
     def testMultipleCharParse(self):
         self.assertEqual(0, p10.base64.toInt('AA'))
         self.assertEqual(64, p10.base64.toInt('BA'))

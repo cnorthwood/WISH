@@ -15,7 +15,6 @@ from test.p10.commands.clearmode import *
 from test.p10.commands.connect import *
 from test.p10.commands.create import *
 from test.p10.commands.destruct import *
-from test.p10.commands.desynch import *
 from test.p10.commands.end_of_burst import *
 from test.p10.commands.eob_ack import *
 from test.p10.commands.error import *
@@ -57,7 +56,6 @@ from test.p10.commands.wallchops import *
 from test.p10.commands.wallops import *
 from test.p10.commands.wallusers import *
 from test.p10.commands.wallvoices import *
-from test.p10.commands.who import *
 from test.p10.commands.whois import *
 from test.p10.commands.whowas import *
 

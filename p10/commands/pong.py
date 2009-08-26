@@ -13,4 +13,7 @@ class pong(genericcommand.genericcommand):
         genericcommand.genericcommand.__init__(self, state)
     
     def handle(self, origin, args):
-        self._connection.registerPong()
+        if p10.base64.parseNumeric(args[1], self._state.maxClientNumerics) == (self._connection.numeric, None):
+            self._connection.registerPong()
+        else:
+            self._state.registerPong(origin, args[0], args[1])

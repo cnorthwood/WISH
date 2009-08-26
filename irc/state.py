@@ -57,7 +57,7 @@ class state:
     
     def requestAdminInfo(self, origin, target):
         if self.userExists(origin):
-            if target[1] == None:
+            if self.serverExists(target[0]) and target[1] == None:
                 self._callback(self.CALLBACK_REQUESTADMIN, (origin, target))
             else:
                 raise p10.parser.ProtocolError("Admin information can only be requested from servers")
@@ -66,7 +66,7 @@ class state:
     
     def requestServerInfo(self, origin, target):
         if self.userExists(origin):
-            if target[1] == None:
+            if self.serverExists(target[0]) and target[1] == None:
                 self._callback(self.CALLBACK_REQUESTINFO, (origin, target))
             else:
                 raise p10.parser.ProtocolError("Server information can only be requested from servers")
@@ -75,7 +75,7 @@ class state:
     
     def requestLusers(self, origin, target, dummy):
         if self.userExists(origin):
-            if target[1] == None:
+            if self.serverExists(target[0]) and target[1] == None:
                 self._callback(self.CALLBACK_REQUESTLUSERS, (origin, target, dummy))
             else:
                 raise p10.parser.ProtocolError("Luser information can only be requested from servers")
@@ -84,7 +84,7 @@ class state:
     
     def requestLinks(self, origin, target, mask):
         if self.userExists(origin):
-            if target[1] == None:
+            if self.serverExists(target[0]) and target[1] == None:
                 self._callback(self.CALLBACK_REQUESTLINKS, (origin, target, mask))
             else:
                 raise p10.parser.ProtocolError("Links information can only be requested from servers")
@@ -93,7 +93,7 @@ class state:
     
     def requestMOTD(self, origin, target):
         if self.userExists(origin):
-            if target[1] == None:
+            if self.serverExists(target[0]) and target[1] == None:
                 self._callback(self.CALLBACK_REQUESTMOTD, (origin, target))
             else:
                 raise p10.parser.ProtocolError("MOTD can only be requested from servers")
@@ -102,7 +102,7 @@ class state:
     
     def requestVersion(self, origin, target):
         if self.userExists(origin):
-            if target[1] == None:
+            if self.serverExists(target[0]) and target[1] == None:
                 self._callback(self.CALLBACK_REQUESTVERSION, (origin, target))
             else:
                 raise p10.parser.ProtocolError("Version can only be requested from servers")
@@ -110,10 +110,22 @@ class state:
             raise StateError("Received a request for version from a non-existant user")
     
     def requestStats(self, origin, target, stat, arg):
-        pass
+        if self.userExists(origin):
+            if self.serverExists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTSTATS, (origin, target, stat, arg))
+            else:
+                raise p10.parser.ProtocolError("Stats can only be requested from servers")
+        else:
+            raise StateError("Received a request for stats from a non-existant user")
     
     def trace(self, origin, search, target):
-        pass
+        if self.userExists(origin):
+            if self.serverExists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_TRACE, (origin, search, target))
+            else:
+                raise p10.parser.ProtocolError("Traces can only be requested from servers")
+        else:
+            raise StateError("Received a request for a trace from a non-existant user")
     
     def ts(self):
         """ Returns our current timestamp """
@@ -166,6 +178,8 @@ class state:
     CALLBACK_REQUESTMOTD = "RequestMOTD"
     CALLBACK_REQUESTNAMES = "RequestNames"
     CALLBACK_REQUESTVERSION = "RequestVersion"
+    CALLBACK_REQUESTSTATS = "RequestStats"
+    CALLBACK_TRACE = "Trace"
     
     def registerCallback(self, type, callbackfn):
         if type in self._callbacks:

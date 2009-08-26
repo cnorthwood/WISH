@@ -99,6 +99,12 @@ class ConnectionDouble:
         self.callbacks.append("SilenceAdd")
     def callbackSilenceRemove(self, (numeric, mask)):
         self.callbacks.append("SilenceRemove")
+    def callbackRequestVersion(self, (origin, target)):
+        self.callbacks.append("Version")
+    def callbackRequestStats(self, (origin, target, stat, arg)):
+        self.callbacks.append("Stats")
+    def callbackTrace(self, (origin, search, target)):
+        self.callbacks.append("Trace")
 
 class StateTest(unittest.TestCase):
     
@@ -145,6 +151,9 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_SILENCEADD, n.callbackSilenceAdd)
         s.registerCallback(irc.state.state.CALLBACK_SILENCEREMOVE, n.callbackSilenceRemove)
         s.registerCallback(irc.state.state.CALLBACK_SERVERQUIT, n.callbackSquit)
+        s.registerCallback(irc.state.state.CALLBACK_REQUESTVERSION, n.callbackRequestVersion)
+        s.registerCallback(irc.state.state.CALLBACK_REQUESTSTATS, n.callbackRequestStats)
+        s.registerCallback(irc.state.state.CALLBACK_TRACE, n.callbackTrace)
         return n
     
     def testAuthentication(self):
@@ -1719,6 +1728,75 @@ class StateTest(unittest.TestCase):
         self.assertFalse(s.userExists((3,1)))
         self.assertTrue(s.channelExists("#test"))
         self.assertEquals(["Squit"], n.callbacks)
+    
+    def testVersion(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.requestVersion((1,1), (1, None))
+        self.assertEquals(["Version"], n.callbacks)
+    
+    def testVersionBadTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.requestVersion, (1,1), (2, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testVersionBadOrigin(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.requestVersion, (1,1), (1, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testRequestStats(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.requestStats((1,1), (1, None), "B", "test.example.com")
+        self.assertEquals(["Stats"], n.callbacks)
+    
+    def testRequestStatsBadTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.requestStats, (1,1), (2, None), "B", "test.example.com")
+        self.assertEquals([], n.callbacks)
+    
+    def testRequestStatsBadOrigin(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.requestStats, (1,1), (1, None), "B", "test.example.com")
+        self.assertEquals([], n.callbacks)
+    
+    def testRequestTrace(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.trace((1,1), "test", (1, None))
+        self.assertEquals(["Trace"], n.callbacks)
+    
+    def testRequestTraceBadTarget(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        self.assertRaises(p10.parser.ProtocolError, s.trace, (1,1), "test", (3, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testRequestTraceBadOrigin(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.trace, (1,1), "test", (1, None))
+        self.assertEquals([], n.callbacks)
 
 def main():
     unittest.main()

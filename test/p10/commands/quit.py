@@ -10,7 +10,7 @@ class StateDouble:
     def quit(self, numeric, reason, causedbysquit=False):
         self.insight.append(reason)
 
-class PartTest(unittest.TestCase):
+class QuitTest(unittest.TestCase):
     
     def testQuit(self):
         s = StateDouble()

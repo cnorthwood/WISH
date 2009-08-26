@@ -23,3 +23,9 @@ class PartTest(unittest.TestCase):
         c = p10.commands.part.part(s)
         c.handle((1,1), ["#test,#foo", "Reason"])
         self.assertEquals([("#test", "Reason"), ("#foo", "Reason")], s.insight)
+    
+def main():
+    unittest.main()
+
+if __name__ == '__main__':
+    main()

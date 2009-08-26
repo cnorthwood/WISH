@@ -25,3 +25,9 @@ class SilenceTest(unittest.TestCase):
         c = p10.commands.silence.silence(s)
         c.handle((1,1), ["ABAAB", "-foo!bar@example.com"])
         self.assertEquals([('remove', 'foo!bar@example.com')], s.insight)
+    
+def main():
+    unittest.main()
+
+if __name__ == '__main__':
+    main()

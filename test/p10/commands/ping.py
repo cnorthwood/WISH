@@ -14,10 +14,12 @@ class StateDouble:
             return "test2.example.com"
     def registerPing(self, origin, source, target):
         self.insight.append((source, target))
+    def getServerID(self):
+        return 1
 
 class ServerDouble:
     pung = False
-    numeric = 1
+    numeric = 2
     def __init__(self):
         self.pung = False
     def registerPing(self, source):

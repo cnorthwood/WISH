@@ -195,7 +195,7 @@ class connection(asyncore.dispatcher):
         if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
             self.close()
         elif self._last_ping < (self._state.ts() - 180):
-            self._sendLine((self._state.getServerID(), None), "G", [base64.createNumeric((self._state.getServerID(), None), self._state.maxClientNumerics)])
+            self._sendLine((self._state.getServerID(), None), "G", [base64.createNumeric((self._state.getServerID(), None))])
             self._last_ping = self._state.ts()
     
     def error(self):

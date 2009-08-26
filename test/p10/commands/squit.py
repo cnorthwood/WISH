@@ -12,10 +12,5 @@ class StateDouble:
     def nick2numeric(self, nick):
         return (2, None)
     
-class SilenceTest(unittest.TestCase):
-    
-    def testAddSilence(self):
-        s = StateDouble()
-        c = p10.commands.squit.squit(s)
-        c.handle((1,1), ["foo.example.com", "6", "A reason"])
-        self.assertEquals([((1,1), (2, None), "A reason", 6)], s.insight)
+class SquitTest(unittest.TestCase):
+    pass

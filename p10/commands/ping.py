@@ -16,7 +16,7 @@ class ping(genericcommand.genericcommand):
         if len(args) == 1:
             self._connection.registerPing(args[0])
         else:
-            if args[1] == self._state.numeric2nick((self._connection.numeric, None)):
+            if args[1] == self._state.numeric2nick((self._state.getServerID(), None)):
                 self._connection.registerPing(args[0])
             else:
                 self._state.registerPing(origin, args[0], args[1])

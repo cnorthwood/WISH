@@ -200,6 +200,9 @@ class connection(asyncore.dispatcher):
     def do_ping(self):
         # Give a 60 second grace between ping being sent and timing out
         if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
+            print "Last ping received: " + self._last_ping
+            print "Last pong received: " + self._last_pong
+            print "Time now: " + self._state.ts()
             self.error("Ping Timeout")
         elif self._last_ping < (self._state.ts() - 180):
             print "PING!"
@@ -209,7 +212,7 @@ class connection(asyncore.dispatcher):
     def error(self, reason):
         """ TODO: Handles errors on the connection """
         print "ERROR: " + reason
-        self._sendLine((self._state.getServerID(), None), "Y" [reason])
+        self._sendLine((self._state.getServerID(), None), "Y", [reason])
         
     def _sendBurst(self):
         self._sendLine((self._state.getServerID(), None), "EB", [])

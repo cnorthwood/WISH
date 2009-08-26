@@ -100,6 +100,15 @@ class state:
         else:
             raise StateError("Received a request for MOTD from a non-existant user")
     
+    def requestVersion(self, origin, target):
+        pass
+    
+    def requestStats(self, origin, target, stat, arg):
+        pass
+    
+    def trace(self, origin, search, target):
+        pass
+    
     def ts(self):
         """ Returns our current timestamp """
         return int(time.time())

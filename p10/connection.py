@@ -96,7 +96,6 @@ class connection(asyncore.dispatcher):
     def _connect(self):
         self.connect(self._endpoint)
         self._connstate = self.CONNECTED
-        print "Connecting to endpoint"
 
         # Send pass and server - don't use the parser at this point
         self._buffer += "PASS :" + self._password + "\r\n"
@@ -154,17 +153,17 @@ class connection(asyncore.dispatcher):
         #p.registerHandler("RI", commands.rping.rping(self._state))
         #p.registerHandler("RO", commands.rpong.rpong(self._state))
         p.registerHandler("S", commands.server.server(self._state, None))
-        #p.registerHandler("SE", commands.settime.settime(self._state))
+        p.registerHandler("SE", commands.settime.settime(self._state))
         p.registerHandler("U", commands.silence.silence(self._state))
         p.registerHandler("SQ", commands.squit.squit(self._state))
-        #p.registerHandler("R", commands.stats.stats(self._state))
+        p.registerHandler("R", commands.stats.stats(self._state))
         p.registerHandler("SJ", commands.svsjoin.svsjoin(self._state))
         p.registerHandler("SN", commands.svsnick.svsnick(self._state))
-        #p.registerHandler("TI", commands.time.time(self._state))
+        p.registerHandler("TI", commands.time.time(self._state))
         p.registerHandler("T", commands.topic.topic(self._state))
-        #p.registerHandler("TR", commands.trace.trace(self._state))
-        #p.registerHandler("UP", commands.uping.uping(self._state))
-        #p.registerHandler("V", commands.version.version(self._state))
+        p.registerHandler("TR", commands.trace.trace(self._state))
+        p.registerHandler("UP", commands.uping.uping(self._state))
+        p.registerHandler("V", commands.version.version(self._state))
         p.registerHandler("WC", commands.wallchops.wallchops(self._state))
         p.registerHandler("WA", commands.wallops.wallops(self._state))
         p.registerHandler("WU", commands.wallusers.wallusers(self._state))
@@ -191,18 +190,15 @@ class connection(asyncore.dispatcher):
     
     def registerPing(self, arg):
         self._sendLine((self._state.getServerID(), None), "Z", [base64.createNumeric((self._state.getServerID(), None)), arg])
-        print "PING? PONG!"
     
     def registerPong(self):
         self._last_pong = self._state.ts()
-        print "PONG!"
     
     def do_ping(self):
         # Give a 60 second grace between ping being sent and timing out
         if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
             self.error("Ping Timeout")
         elif self._last_ping < (self._state.ts() - 180):
-            print "PING!"
             self._sendLine((self._state.getServerID(), None), "G", [base64.createNumeric((self._state.getServerID(), None))])
             self._last_ping = self._state.ts()
     

@@ -15,6 +15,8 @@ class StateDouble:
             return "test2.example.com"
     def registerPong(self, origin, source, target):
         self.insight.append((source, target))
+    def getServerID(self):
+        return 1
 
 class ServerDouble:
     pung = False

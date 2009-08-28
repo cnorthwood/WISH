@@ -105,6 +105,24 @@ class ConnectionDouble:
         self.callbacks.append("Stats")
     def callbackTrace(self, (origin, search, target)):
         self.callbacks.append("Trace")
+    def callbackPing(self, (origin, source, target)):
+        self.callbacks.append("Ping")
+    def callbackPong(self, (origin, source, target)):
+        self.callbacks.append("Pong")
+    def callbackRequestWhois(self, (origin, target, search)):
+        self.callbacks.append("Whois")
+    def callbackPrivmsg(self, (origin, target, message)):
+        self.callbacks.append("Privmsg")
+    def callbackNotice(self, (origin, target, message)):
+        self.callbacks.append("Notice")
+    def callbackWallops(self, (origin, message)):
+        self.callbacks.append("Wallops")
+    def callbackWallusers(self, (origin, message)):
+        self.callbacks.append("Wallusers")
+    def callbackWallvoices(self, (origin, channel, message)):
+        self.callbacks.append("Wallvoices")
+    def callbackWallchops(self, (origin, channel, message)):
+        self.callbacks.append("Wallchops")
 
 class StateTest(unittest.TestCase):
     
@@ -154,6 +172,15 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_REQUESTVERSION, n.callbackRequestVersion)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTSTATS, n.callbackRequestStats)
         s.registerCallback(irc.state.state.CALLBACK_TRACE, n.callbackTrace)
+        s.registerCallback(irc.state.state.CALLBACK_PING, n.callbackPing)
+        s.registerCallback(irc.state.state.CALLBACK_PONG, n.callbackPong)
+        s.registerCallback(irc.state.state.CALLBACK_REQUESTWHOIS, n.callbackRequestWhois)
+        s.registerCallback(irc.state.state.CALLBACK_PRIVMSG, n.callbackPrivmsg)
+        s.registerCallback(irc.state.state.CALLBACK_NOTICE, n.callbackNotice)
+        s.registerCallback(irc.state.state.CALLBACK_WALLOPS, n.callbackWallops)
+        s.registerCallback(irc.state.state.CALLBACK_WALLUSERS, n.callbackWallusers)
+        s.registerCallback(irc.state.state.CALLBACK_WALLVOICES, n.callbackWallvoices)
+        s.registerCallback(irc.state.state.CALLBACK_WALLCHOPS, n.callbackWallchops)
         return n
     
     def testAuthentication(self):
@@ -1796,6 +1823,161 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
         self.assertRaises(irc.state.StateError, s.trace, (1,1), "test", (1, None))
+        self.assertEquals([], n.callbacks)
+    
+    def testRegisterPing(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.registerPing((1, None), "AB", "test.example.com")
+        self.assertEquals(["Ping"], n.callbacks)
+    
+    def testRegisterPingNonServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.registerPing, (7, None), "AB", "test.example.com")
+        self.assertEquals([], n.callbacks)
+    
+    def testRegisterPingUser(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.registerPing, (1, 8), "AB", "test.example.com")
+        self.assertEquals([], n.callbacks)
+    
+    def testRegisterPong(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.registerPong((1, None), "AB", "test.example.com")
+        self.assertEquals(["Pong"], n.callbacks)
+    
+    def testRegisterPongNonServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.registerPong, (7, None), "AB", "test.example.com")
+        self.assertEquals([], n.callbacks)
+    
+    def testRegisterPongUser(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.registerPong, (1, 8), "AB", "test.example.com")
+        self.assertEquals([], n.callbacks)
+    
+    def testWhois(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [], 0, 0, 0, "Test User")
+        n = self._setupCallbacks(s)
+        s.requestWhois((1, 1), (1, None), "test")
+        self.assertEquals(["Whois"], n.callbacks)
+    
+    def testWhoisOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.requestWhois, (1, 1), (1, None), "test")
+        self.assertEquals([], n.callbacks)
+    
+    def testWhoisTargetExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.requestWhois, (1, 1), (6, None), "test")
+        self.assertEquals([], n.callbacks)
+    
+    def testWhoisTargetIsServer(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.requestWhois, (1, 1), (5,4), "test")
+        self.assertEquals([], n.callbacks)
+    
+    def testPrivmsg(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.privmsg((1, None), "#test", "Test message")
+        self.assertEquals(["Privmsg"], n.callbacks)
+    
+    def testPrivmsgOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.privmsg, (1, 7), "#test", "Test message")
+        self.assertEquals([], n.callbacks)
+    
+    def testNotice(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.notice((1, None), "#test", "Test message")
+        self.assertEquals(["Notice"], n.callbacks)
+    
+    def testNoticeOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.notice, (1, 7), "#test", "Test message")
+        self.assertEquals([], n.callbacks)
+    
+    def testWallvoices(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.wallvoices((1, None), "#test", "Test message")
+        self.assertEquals(["Wallvoices"], n.callbacks)
+    
+    def testWallvoicesOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.wallvoices, (1, 7), "#test", "Test message")
+        self.assertEquals([], n.callbacks)
+    
+    def testWallchops(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.wallchops((1, None), "#test", "Test message")
+        self.assertEquals(["Wallchops"], n.callbacks)
+    
+    def testWallchopsOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.wallchops, (1, 7), "#test", "Test message")
+        self.assertEquals([], n.callbacks)
+    
+    def testWallops(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.wallops((1, None), "Test message")
+        self.assertEquals(["Wallops"], n.callbacks)
+    
+    def testWallopsOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.wallops, (1, 7), "Test message")
+        self.assertEquals([], n.callbacks)
+    
+    def testWallusers(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.wallusers((1, None), "Test message")
+        self.assertEquals(["Wallusers"], n.callbacks)
+    
+    def testWallusersOriginExists(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        self.assertRaises(irc.state.StateError, s.wallusers, (1, 7), "Test message")
         self.assertEquals([], n.callbacks)
 
 def main():

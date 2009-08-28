@@ -180,6 +180,15 @@ class state:
     CALLBACK_REQUESTVERSION = "RequestVersion"
     CALLBACK_REQUESTSTATS = "RequestStats"
     CALLBACK_TRACE = "Trace"
+    CALLBACK_PING = "Ping"
+    CALLBACK_PONG = "Pong"
+    CALLBACK_REQUESTWHOIS = "Whois"
+    CALLBACK_PRIVMSG = "Privmsg"
+    CALLBACK_NOTICE = "Notice"
+    CALLBACK_WALLOPS = "Wallops"
+    CALLBACK_WALLUSERS = "Wallusers"
+    CALLBACK_WALLVOICES = "Wallvoices"
+    CALLBACK_WALLCHOPS = "Wallchops"
     
     def registerCallback(self, type, callbackfn):
         if type in self._callbacks:
@@ -263,10 +272,16 @@ class state:
                     return server.numeric
     
     def registerPing(self, origin, source, target):
-        pass
+        if self.serverExists(origin[0]) and origin[1] == None:
+            self._callback(self.CALLBACK_PING, (origin, source, target))
+        else:
+            raise StateError("Ping received by non-server")
     
     def registerPong(self, origin, source, target):
-        pass
+        if self.serverExists(origin[0]) and origin[1] == None:
+            self._callback(self.CALLBACK_PONG, (origin, source, target))
+        else:
+            raise StateError("Pong received by non-server")
     
     #
     # Jupes
@@ -483,7 +498,13 @@ class state:
         self._callback(self.CALLBACK_SILENCEREMOVE, (numeric, mask))
     
     def requestWhois(self, origin, target, search):
-        pass
+        if self.userExists(origin):
+            if self.serverExists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTWHOIS, (origin, target, search))
+            else:
+                raise StateError("Whois requested from non-server")
+        else:
+            raise StateError("Whois requested by non-existant user")
     
     #
     # Channel handling
@@ -861,22 +882,40 @@ class state:
     #
     
     def privmsg(self, origin, target, message):
-        pass
+        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_PRIVMSG, (origin, target, message))
+        else:
+            raise StateError("Privmsg received from non-existant entity")
     
     def notice(self, origin, target, message):
-        pass
+        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_NOTICE, (origin, target, message))
+        else:
+            raise StateError("Notice received from non-existant entity")
     
     def wallops(self, origin, message):
-        pass
+        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLOPS, (origin, message))
+        else:
+            raise StateError("Wallops received from non-existant entity")
     
     def wallusers(self, origin, message):
-        pass
+        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLUSERS, (origin, message))
+        else:
+            raise StateError("Wallusers received from non-existant entity")
     
-    def wallvoice(self, origin, channel, message):
-        pass
+    def wallvoices(self, origin, channel, message):
+        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLVOICES, (origin, channel, message))
+        else:
+            raise StateError("Wallvoices received from non-existant entity")
     
     def wallchops(self, origin, channel, message):
-        pass
+        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLCHOPS, (origin, channel, message))
+        else:
+            raise StateError("Wallchops received from non-existant entity")
     
     #
     # G-lines

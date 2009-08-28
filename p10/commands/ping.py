@@ -4,7 +4,6 @@ import genericcommand
 import p10.base64
 
 class ping(genericcommand.genericcommand):
-    """ Parses servers being introduced """
     
     _connection = None
     

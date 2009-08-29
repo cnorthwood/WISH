@@ -1979,6 +1979,27 @@ class StateTest(unittest.TestCase):
         n = self._setupCallbacks(s)
         self.assertRaises(irc.state.StateError, s.wallusers, (1, 7), "Test message")
         self.assertEquals([], n.callbacks)
+    
+    def testDeregisterCallbacks(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.wallusers((1, None), "Test message")
+        self.assertEquals(["Wallusers"], n.callbacks)
+        s.deregisterCallback(irc.state.state.CALLBACK_WALLUSERS, n.callbackWallusers)
+        s.wallusers((1, None), "Test message")
+        self.assertEquals(["Wallusers"], n.callbacks)
+    
+    def testDeregisterCallbacksNoType(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.deregisterCallback(irc.state.state.CALLBACK_WALLUSERS, self.testDeregisterCallbacksNoType)
+    
+    def testDeregisterCallbacksNotRegistered(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.deregisterCallback(irc.state.state.CALLBACK_WALLUSERS, self.testDeregisterCallbacksNotRegistered)
 
 def main():
     unittest.main()

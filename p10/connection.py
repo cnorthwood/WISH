@@ -63,7 +63,7 @@ class connection(asyncore.dispatcher):
     """ Represents a connection upstream """
     
     _state = None
-    _connstate = None
+    connstate = None
     _parser = None
     numeric = None
     _endpoint = None
@@ -78,12 +78,13 @@ class connection(asyncore.dispatcher):
     CHALLENGED = 2
     HANDSHAKE = 3
     AUTHENTICATED = 4
+    COMPLETE = 5
     
     def __init__(self, state):
         """ Sets up the state that this connection will alter """
         asyncore.dispatcher.__init__(self)
         self._state = state
-        self._connstate = self.DISCONNECTED
+        self.connstate = self.DISCONNECTED
         self.numeric = None
         self._upstream_password = None
         self._password = None
@@ -93,14 +94,21 @@ class connection(asyncore.dispatcher):
         self._data = ""
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
     
+    def start(self, endpoint, password):
+        # Create our socket
+        self._endpoint = endpoint
+        self._password = password
+        self._connect()
+        return self
+    
     def _connect(self):
         self.connect(self._endpoint)
-        self._connstate = self.CONNECTED
+        self.connstate = self.CONNECTED
 
         # Send pass and server - don't use the parser at this point
         self._buffer += "PASS :" + self._password + "\r\n"
         self._buffer += "SERVER " + self._state.getServerName() + " 1 " + str(self._state.ts()) + " " + str(self._state.ts()) + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerName() + "\r\n"
-        self._connstate = self.CHALLENGED
+        self.connstate = self.CHALLENGED
         
         # Set up stuff for authentication
         self._parser.registerHandler("PASS", commands.password.password(self._state, self))
@@ -108,12 +116,63 @@ class connection(asyncore.dispatcher):
         self._last_pong = self._state.ts()
         self._last_ping = self._state.ts()
     
-    def start(self, endpoint, password):
-        # Create our socket
-        self._endpoint = endpoint
-        self._password = password
-        self._connect()
-        return self
+    def _setupCallbacks(self):
+        self._state.registerCallback(self._state.CALLBACK_NEWUSER, self.callbackNewUser)
+        self._state.registerCallback(self._state.CALLBACK_CHANGENICK, self.callbackChangeNick)
+        self._state.registerCallback(self._state.CALLBACK_NEWSERVER, self.callbackNewServer)
+        self._state.registerCallback(self._state.CALLBACK_AUTHENTICATE, self.callbackAuthenticate)
+        self._state.registerCallback(self._state.CALLBACK_USERMODECHANGE, self.callbackChangeUserMode)
+        self._state.registerCallback(self._state.CALLBACK_AWAY, self.callbackAway)
+        self._state.registerCallback(self._state.CALLBACK_BACK, self.callbackBack)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELCREATE, self.callbackChannelCreate)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELJOIN, self.callbackChannelJoin)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELPART, self.callbackChannelPart)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELPARTALL, self.callbackPartAll)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELMODECHANGE, self.callbackChannelChangeMode)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELBANADD, self.callbackChannelAddBan)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELBANREMOVE, self.callbackChannelRemoveBan)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELBANCLEAR, self.callbackChannelClearBans)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELOP, self.callbackChannelOp)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELDEOP, self.callbackChannelDeop)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELCLEAROPS, self.callbackChannelClearOps)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELVOICE, self.callbackChannelVoice)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELDEVOICE, self.callbackChannelDevoice)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELCLEARVOICES, self.callbackChannelClearVoices)
+        self._state.registerCallback(self._state.CALLBACK_GLINEADD, self.callbackGlineAdd)
+        self._state.registerCallback(self._state.CALLBACK_GLINEREMOVE, self.callbackGlineRemove)
+        self._state.registerCallback(self._state.CALLBACK_INVITE, self.callbackInvite)
+        self._state.registerCallback(self._state.CALLBACK_JUPEADD, self.callbackJupeAdd)
+        self._state.registerCallback(self._state.CALLBACK_JUPEREMOVE, self.callbackJupeRemove)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTADMIN, self.callbackAdminInfo)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTINFO, self.callbackInfoRequest)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELKICK, self.callbackKick)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELPARTZOMBIE, self.callbackZombiePart)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELDESTROY, self.callbackChannelDestroy)
+        self._state.registerCallback(self._state.CALLBACK_QUIT, self.callbackQuit)
+        self._state.registerCallback(self._state.CALLBACK_KILL, self.callbackKill)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTLUSERS, self.callbackLusers)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTLINKS, self.callbackLinks)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTMOTD, self.callbackMOTD)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTNAMES, self.callbackNames)
+        self._state.registerCallback(self._state.CALLBACK_CHANNELTOPIC, self.callbackTopic)
+        self._state.registerCallback(self._state.CALLBACK_SILENCEADD, self.callbackSilenceAdd)
+        self._state.registerCallback(self._state.CALLBACK_SILENCEREMOVE, self.callbackSilenceRemove)
+        self._state.registerCallback(self._state.CALLBACK_SERVERQUIT, self.callbackSquit)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTVERSION, self.callbackRequestVersion)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTSTATS, self.callbackRequestStats)
+        self._state.registerCallback(self._state.CALLBACK_TRACE, self.callbackTrace)
+        self._state.registerCallback(self._state.CALLBACK_PING, self.callbackPing)
+        self._state.registerCallback(self._state.CALLBACK_PONG, self.callbackPong)
+        self._state.registerCallback(self._state.CALLBACK_REQUESTWHOIS, self.callbackRequestWhois)
+        self._state.registerCallback(self._state.CALLBACK_PRIVMSG, self.callbackPrivmsg)
+        self._state.registerCallback(self._state.CALLBACK_NOTICE, self.callbackNotice)
+        self._state.registerCallback(self._state.CALLBACK_WALLOPS, self.callbackWallops)
+        self._state.registerCallback(self._state.CALLBACK_WALLUSERS, self.callbackWallusers)
+        self._state.registerCallback(self._state.CALLBACK_WALLVOICES, self.callbackWallvoices)
+        self._state.registerCallback(self._state.CALLBACK_WALLCHOPS, self.callbackWallchops)
+    
+    def _teardownCallbacks(self):
+        pass
     
     def _setupParser(self):
         p = self._parser
@@ -194,6 +253,10 @@ class connection(asyncore.dispatcher):
     def registerPong(self):
         self._last_pong = self._state.ts()
     
+    def close_connection(self):
+        self.close()
+        self.connstate = self.COMPLETE
+    
     def do_ping(self):
         # Give a 60 second grace between ping being sent and timing out
         if (self._state.ts() - 60) > self._last_ping and self._last_ping > self._last_pong:
@@ -208,6 +271,7 @@ class connection(asyncore.dispatcher):
         self._sendLine((self._state.getServerID(), None), "Y", [reason])
         
     def _sendBurst(self):
+        # Now we start listening 
         self._sendLine((self._state.getServerID(), None), "EB", [])
     
     def writable(self):
@@ -217,12 +281,14 @@ class connection(asyncore.dispatcher):
         sent = self.send(self._buffer)
         print "SENT: " + self._buffer[:sent]
         self._buffer = self._buffer[sent:]
-        
+    
     def handle_close(self):
+        if self.connstate != self.COMPLETE:
+            self._state.quitServer((self._state.getServerID(), None), (self.numeric, None), "Connection closed unexpectedly", self._state.ts())
+            self.connstate = self.COMPLETE
+        self._teardownCallbacks()
         self.close()
-        # Now reconnect!
-        self._reconnect()
-
+    
     def handle_read(self):
         # Get this chunk
         self._data += self.recv(512)
@@ -233,19 +299,19 @@ class connection(asyncore.dispatcher):
             line = self._data[:nlb+1]
             print "HANDLING: " + line
             # Update state
-            if self._connstate == self.CHALLENGED and self._upstream_password != None:
+            if self.connstate == self.CHALLENGED and self._upstream_password != None:
                 # Check password
                 if self._password == self._upstream_password:
-                    self._connstate = self.HANDSHAKE
+                    self.connstate = self.HANDSHAKE
                     self._parser.registerHandler("SERVER", commands.server.server(self._state, self))
                 else:
                     self.error("Password not as expected")
-            if self._connstate == self.HANDSHAKE and self.numeric != None:
-                self._connstate = self.AUTHENTICATED
+            if self.connstate == self.HANDSHAKE and self.numeric != None:
+                self.connstate = self.AUTHENTICATED
                 self._setupParser()
                 # We're all good, send netburst
                 self._sendBurst()
-            if self._connstate < self.AUTHENTICATED:
+            if self.connstate < self.AUTHENTICATED:
                 try:
                     self._parser.parsePreAuth(line, (self._state.getServerID(), None))
                 except Exception, e:
@@ -259,7 +325,165 @@ class connection(asyncore.dispatcher):
             self._data = self._data[nlb+1:]
             nlb = self._data.find("\n")
         self.do_ping()
-
+    
+    def callbackNewUser(self, (origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)):
+        pass
+    
+    def callbackChangeNick(self, (origin, numeric, newnick, newts)):
+        pass
+    
+    def callbackNewServer(self, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)):
+        pass
+    
+    def callbackSquit(self, (origin, numeric, reason, ts)):
+        pass
+    
+    def callbackAuthenticate(self, (origin, numeric, acname)):
+        pass
+    
+    def callbackAway(self, (numeric, reason)):
+        pass
+    
+    def callbackBack(self, (numeric)):
+        pass
+    
+    def callbackChannelCreate(self, (origin, name, ts)):
+        pass
+    
+    def callbackChannelJoin(self, (origin, numeric, name, modes, ts)):
+        pass
+    
+    def callbackChannelPart(self, (numeric, name, reason)):
+        pass
+    
+    def callbackPartAll(self, (numeric)):
+        pass
+    
+    def callbackChannelChangeMode(self, (origin, name, mode)):
+        pass
+    
+    def callbackChannelAddBan(self, (origin, name, mask)):
+        pass
+    
+    def callbackChannelRemoveBan(self, (origin, name, ban)):
+        pass
+    
+    def callbackChannelClearBans(self, (origin, name)):
+        pass
+    
+    def callbackChannelOp(self, (origin, channel, user)):
+        pass
+    
+    def callbackChannelDeop(self, (origin, channel, user)):
+        pass
+    
+    def callbackChannelClearOps(self, (origin, name)):
+        pass
+    
+    def callbackChannelVoice(self, (origin, channel, user)):
+        pass
+    
+    def callbackChannelDevoice(self, (origin, channel, user)):
+        pass
+    
+    def callbackChannelClearVoices(self, (origin, name)):
+        pass
+    
+    def callbackGlineAdd(self, (origin, mask, target, expires, description)):
+        pass
+    
+    def callbackGlineRemove(self, (origin, mask, target)):
+        pass
+    
+    def callbackInvite(self, (origin, target, channel)):
+        pass
+    
+    def callbackJupeAdd(self, (origin, target, server, expire, reason)):
+        pass
+    
+    def callbackJupeRemove(self, (origin, target, server)):
+        pass
+    
+    def callbackAdminInfo(self, (origin, target)):
+        pass
+    
+    def callbackInfoRequest(self, (origin, target)):
+        pass
+    
+    def callbackKick(self, (origin, channel, target, reason)):
+        pass
+    
+    def callbackZombiePart(self, (origin, target)):
+        pass
+    
+    def callbackChannelDestroy(self, (origin, channel, ts)):
+        pass
+    
+    def callbackQuit(self, (numeric, reason, causedbysquit)):
+        pass
+    
+    def callbackKill(self, (origin, target, path, reason)):
+        pass
+    
+    def callbackLusers(self, (origin, target, dummy)):
+        pass
+    
+    def callbackLinks(self, (origin, target, mask)):
+        pass
+    
+    def callbackChangeUserMode(self, (numeric, modes)):
+        pass
+    
+    def callbackMOTD(self, (numeric, target)):
+        pass
+    
+    def callbackNames(self, (origin, target, channel)):
+        pass
+    
+    def callbackTopic(self, (origin, channel, topic, topic_ts, channel_ts)):
+        pass
+    
+    def callbackSilenceAdd(self, (numeric, mask)):
+        pass
+    
+    def callbackSilenceRemove(self, (numeric, mask)):
+        pass
+    
+    def callbackRequestVersion(self, (origin, target)):
+        pass
+    
+    def callbackRequestStats(self, (origin, target, stat, arg)):
+        pass
+    
+    def callbackTrace(self, (origin, search, target)):
+        pass
+    
+    def callbackPing(self, (origin, source, target)):
+        pass
+    
+    def callbackPong(self, (origin, source, target)):
+        pass
+    
+    def callbackRequestWhois(self, (origin, target, search)):
+        pass
+    
+    def callbackPrivmsg(self, (origin, target, message)):
+        pass
+    
+    def callbackNotice(self, (origin, target, message)):
+        pass
+    
+    def callbackWallops(self, (origin, message)):
+        pass
+    
+    def callbackWallusers(self, (origin, message)):
+        pass
+    
+    def callbackWallvoices(self, (origin, channel, message)):
+        pass
+    
+    def callbackWallchops(self, (origin, channel, message)):
+        pass
 
 
 class ConnectionError(Exception):

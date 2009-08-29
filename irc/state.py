@@ -196,6 +196,11 @@ class state:
         else:
             self._callbacks[type] = [callbackfn]
     
+    def deregisterCallback(self, type, callbackfn):
+        if type in self._callbacks:
+            if callbackfn in self._callbacks[type]:
+                self._callbacks[type].remove(callbackfn)
+    
     def _callback(self, type, args):
         if type in self._callbacks:
             for callback in self._callbacks[type]:

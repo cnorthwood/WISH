@@ -35,7 +35,10 @@ upstreams = [
             ]
 
 # Execute!
-while 1:
+while len(upstreams) > 0:
     asyncore.loop()
     for upstream in upstreams:
-        upstream.do_ping()
+        if upstream.connstate == p10.connection.connection.COMPLETE:
+            upstreams.remove(upstream)
+        else:
+            upstream.do_ping()

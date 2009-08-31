@@ -510,7 +510,7 @@ class StateTest(unittest.TestCase):
         c = ConfigDouble()
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
-        s.joinChannel((1,1), (1,1), "#test", [])
+        s.joinChannel((1,1), (1,1), "#test", "o")
         self.assertTrue(s.channelExists("#test"))
         self.assertTrue((1,1) in s.channels["#test"].users())
         self.assertTrue(s.channels["#test"].isop((1,1)))
@@ -530,7 +530,7 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        s.joinChannel((1,1), (1,1), "#test", [])
+        s.joinChannel((1,1), (1,1), "#test", "o")
         self.assertEquals(["ChannelCreate"], n.callbacks)
     
     def testChangeModeNonExistantChannel(self):

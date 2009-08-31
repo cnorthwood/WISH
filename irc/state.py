@@ -533,7 +533,6 @@ class state:
                         if origin[1] != None:
                             self.joinChannel(origin, origin, name, ["o"], ts)
                         create_success = True
-                        callback = False
                     # Their channel is older, overrides ours and merge users
                     elif self.channels[name].ts > ts:
                         self.channels[name].ts = ts
@@ -546,13 +545,12 @@ class state:
                         if origin[1] != None:
                             self.joinChannel(origin, origin, name, ["o"], ts)
                         create_success = True
-                        callback = False
                 else:
                     self.channels[name] = channel(name, ts)
                     if origin[1] != None:
                         self.channels[name].join(origin, ["o"])
                         self.users[origin].join(name)
-                    callback = True
+                        callback = True
                     create_success = True
             else:
                 raise StateError("Unknown entity attempted to create a channel")
@@ -705,7 +703,15 @@ class state:
                     self.users[numeric].join(name)
                     callback = True
                 else:
+                    # Channel doesn't exist, so it gets created
                     self.createChannel(numeric, name, ts)
+                    # But, modes don't get propagated by create, it always assumes o
+                    # So bounce deop if needed
+                    if "o" not in modes:
+                        self.deop(origin, name, numeric)
+                    # And send voice if needed
+                    if "v" in modes:
+                        self.voice(origin, name, numeric)
             else:
                 raise StateError("Unknown user (" + str(numeric) + ") attempted to join a channel")
         finally:
@@ -1026,6 +1032,7 @@ class user:
         """ Mark this user as authenticated """
         if self.account == "":
             self.account = account
+            self._modes["r"] = account
         else:
             raise StateError("Authentication state change received for someone who is already authenticated")
     

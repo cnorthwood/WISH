@@ -380,6 +380,7 @@ class connection(asyncore.dispatcher):
         self.do_ping()
     
     def callbackNewUser(self, (origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)):
+        # Broadcast to all away from origin
         if self._state.getNextHop(origin) != self.numeric:
             line = [nickname, str(hops + 1), str(ts), username, hostname]
             modestr = "+"
@@ -398,6 +399,7 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "N", line)
     
     def callbackChangeNick(self, (origin, numeric, newnick, newts)):
+        # Broadcast to all away from origin
         if self._state.getNextHop(origin) != self.numeric:
             if origin != numeric:
                 self._sendLine(origin, "SN", [base64.createNumeric(numeric), newnick])
@@ -405,39 +407,67 @@ class connection(asyncore.dispatcher):
                 self._sendLine(numeric, "N", [newnick, str(newts)])
     
     def callbackNewServer(self, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)):
+        # Broadcast to all away from origin
         if self._state.getNextHop(origin) != self.numeric:
             self._sendLine(origin, "S", [name, str(hops + 1), str(boot_ts), str(link_ts), protocol, base64.createNumeric((numeric, maxclient)), "+" + flags, description])
     
     def callbackSquit(self, (origin, numeric, reason, ts)):
+        # If this uplink is the one being disconnected
         if numeric[0] == self.numeric:
             self.close_connection()
             self._sendLine(origin, "SQ", [self._state.getServerName(), "0", reason])
+        # Otherwise, broadcast away from origin
         elif self._state.getNextHop(origin) != self.numeric:
             self._sendLine(origin, "SQ", [self._state.numeric2nick(numeric), str(ts), reason])
     
     def callbackAuthenticate(self, (origin, numeric, acname)):
-        pass
+        # Broadcast to all away from origin
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "AC", [base64.createNumeric(numeric), acname])
     
     def callbackAway(self, (numeric, reason)):
-        pass
+        # Broadcast to all away from origin
+        if self._state.getNextHop(numeric) != self.numeric:
+            self._sendLine(numeric, "A", [reason])
     
     def callbackBack(self, (numeric)):
-        pass
+        # Broadcast to all away from origin
+        if self._state.getNextHop(numeric) != self.numeric:
+            self._sendLine(numeric, "A", [])
     
     def callbackChannelCreate(self, (origin, name, ts)):
-        pass
+        # Broadcast to all servers away from origin
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "C", [name, str(ts)])
     
     def callbackChannelJoin(self, (origin, numeric, name, modes, ts)):
-        pass
+        # Broadcast to all servers away from origin
+        if self._state.getNextHop(origin) != self.numeric:
+            # If it's a forced join, must be a SJ
+            if origin != numeric:
+                self._sendLine(origin, "SJ", [base64.createNumeric(numeric), name])
+            else:
+                self._sendLine(origin, "J", [name, str(ts)])
+            # In theory, joins should never be called if the channel already exists
+            # so we must force any modes on
+            if "o" in modes:
+                self.callbackChannelOp((origin, name, numeric))
+            if "v" in modes:
+                self.callbackChannelVoice((origin, name, numeric))
     
     def callbackChannelPart(self, (numeric, name, reason)):
-        pass
+        if self._state.getNextHop(numeric) != self.numeric:
+            self._sendLine(numeric, "P", [name, reason])
     
     def callbackPartAll(self, (numeric)):
-        pass
+        if self._state.getNextHop(numeric) != self.numeric:
+            self._sendLine(numeric, "J", ["0"])
     
     def callbackChannelChangeMode(self, (origin, name, mode)):
-        pass
+        if mode[1] != None:
+            self._sendLine(origin, "M", [name, mode[0], mode[1], str(self._state.channels[name].ts)])
+        else:
+            self._sendLine(origin, "M", [name, mode[0], str(self._state.channels[name].ts)])
     
     def callbackChannelAddBan(self, (origin, name, mask)):
         pass
@@ -449,7 +479,7 @@ class connection(asyncore.dispatcher):
         pass
     
     def callbackChannelOp(self, (origin, channel, user)):
-        pass
+        self.callbackChannelChangeMode((origin, channel, ("+o", base64.createNumeric(user))))
     
     def callbackChannelDeop(self, (origin, channel, user)):
         pass
@@ -458,7 +488,7 @@ class connection(asyncore.dispatcher):
         pass
     
     def callbackChannelVoice(self, (origin, channel, user)):
-        pass
+        self.callbackChannelChangeMode((origin, channel, ("+v", base64.createNumeric(user))))
     
     def callbackChannelDevoice(self, (origin, channel, user)):
         pass

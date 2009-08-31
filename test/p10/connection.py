@@ -2,6 +2,7 @@
 
 import unittest
 import p10.connection
+import irc.state
 
 class TestableConnection(p10.connection.connection):
     insight = []
@@ -18,6 +19,7 @@ class TestableConnection(p10.connection.connection):
 
 class StateDouble:
     maxClientNumerics = dict({1: 262143})
+    channels = dict({"#test": irc.state.channel("#test", 1234)})
     def getServerID(self):
         return 1
     def getServerName(self):
@@ -112,6 +114,102 @@ class ConnectionTest(unittest.TestCase):
         c.callbackSquit(((1, None), (2, None), "Test Quit", 68))
         self.assertEquals([((1, None), "SQ", ["test.example.com", "0", "Test Quit"])], c.insight)
         self.assertEquals(c.COMPLETE, c.connstate)
+    
+    def testAuthenticate(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAuthenticate(((6, None), (1, 3), "example"))
+        self.assertEquals([((6, None), "AC", ["ABAAD", "example"])], c.insight)
+    
+    def testAuthenticateIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAuthenticate(((2, None), (1, 3), "example"))
+        self.assertEquals([], c.insight)
+    
+    def testAway(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAway(((6, 3), "example"))
+        self.assertEquals([((6, 3), "A", ["example"])], c.insight)
+    
+    def testAwayIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAway(((3, 3), "example"))
+        self.assertEquals([], c.insight)
+    
+    def testBack(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackBack(((6, 3)))
+        self.assertEquals([((6, 3), "A", [])], c.insight)
+    
+    def testBackIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackBack(((3, 3)))
+        self.assertEquals([], c.insight)
+    
+    def testCreate(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelCreate(((1, None), "#test", 1234))
+        self.assertEquals([((1, None), "C", ["#test", "1234"])], c.insight)
+    
+    def testCreateIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelCreate(((3, None), "#test", 1234))
+        self.assertEquals([], c.insight)
+    
+    def testJoin(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelJoin(((1, 6), (1, 6), "#test", "", 1234))
+        self.assertEquals([((1, 6), "J", ["#test", "1234"])], c.insight)
+    
+    def testJoinIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelJoin(((3, 6), (3, 6), "#test", "", 1234))
+        self.assertEquals([], c.insight)
+    
+    def testJoinSendModes(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelJoin(((1, 6), (1, 6), "#test", "ov", 1234))
+        self.assertEquals([((1, 6), "J", ["#test", "1234"]), ((1,6), "M", ["#test", "+o", "ABAAG", "1234"]), ((1,6), "M", ["#test", "+v", "ABAAG", "1234"])], c.insight)
+    
+    def testSvsjoin(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelJoin(((1, None), (1, 6), "#test", "", 1234))
+        self.assertEquals([((1, None), "SJ", ["ABAAG", "#test"])], c.insight)
+    
+    def testPart(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelPart(((1, 6), "#test", "Reason"))
+        self.assertEquals([((1,6), "P", ["#test", "Reason"])], c.insight)
+    
+    def testPartIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelPart(((3, 6), "#test", "Reason"))
+        self.assertEquals([], c.insight)
+    
+    def testPartAll(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPartAll(((1, 6)))
+        self.assertEquals([((1,6), "J", ["0"])], c.insight)
+    
+    def testPartAllIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPartAll(((3, 6)))
+        self.assertEquals([], c.insight)
 
 def main():
     unittest.main()

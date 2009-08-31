@@ -2000,6 +2000,14 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         n = self._setupCallbacks(s)
         s.deregisterCallback(irc.state.state.CALLBACK_WALLUSERS, self.testDeregisterCallbacksNotRegistered)
+    
+    def testGetNextHop(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newServer((1, None), 2, "test.example.com", 1000, 1234, 1234, "P10", 1, "", "A test example server")
+        self.assertEquals(2, s.getNextHop((2, None)))
+        s.newServer((2, None), 3, "test2.example.com", 1000, 1234, 1234, "P10", 1, "", "A test example server")
+        self.assertEquals(2, s.getNextHop((3, None)))
 
 def main():
     unittest.main()

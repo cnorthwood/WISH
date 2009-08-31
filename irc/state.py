@@ -267,14 +267,14 @@ class state:
             self._callback(self.CALLBACK_SERVERQUIT, (origin, numeric, reason, ts))
     
     def getNextHop(self, dest):
+        """ Return which direction an entity is from here """
         if dest[0] == self.getServerID():
             return None
-        elif dest[0] in self._servers:
+        if dest[0] in self._servers[self.getServerID()].children:
             return dest[0]
-        else:
-            for server in self._servers:
-                if dest[0] in server.children:
-                    return server.numeric
+        for server in self._servers[self.getServerID()].children:
+            if dest[0] in self._getAllChildrenOf(server):
+                return server
     
     def registerPing(self, origin, source, target):
         if self.serverExists(origin[0]) and origin[1] == None:

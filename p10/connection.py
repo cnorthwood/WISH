@@ -172,7 +172,59 @@ class connection(asyncore.dispatcher):
         self._state.registerCallback(self._state.CALLBACK_WALLCHOPS, self.callbackWallchops)
     
     def _teardownCallbacks(self):
-        pass
+        self._state.deregisterCallback(self._state.CALLBACK_NEWUSER, self.callbackNewUser)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANGENICK, self.callbackChangeNick)
+        self._state.deregisterCallback(self._state.CALLBACK_NEWSERVER, self.callbackNewServer)
+        self._state.deregisterCallback(self._state.CALLBACK_AUTHENTICATE, self.callbackAuthenticate)
+        self._state.deregisterCallback(self._state.CALLBACK_USERMODECHANGE, self.callbackChangeUserMode)
+        self._state.deregisterCallback(self._state.CALLBACK_AWAY, self.callbackAway)
+        self._state.deregisterCallback(self._state.CALLBACK_BACK, self.callbackBack)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELCREATE, self.callbackChannelCreate)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELJOIN, self.callbackChannelJoin)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELPART, self.callbackChannelPart)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELPARTALL, self.callbackPartAll)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELMODECHANGE, self.callbackChannelChangeMode)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELBANADD, self.callbackChannelAddBan)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELBANREMOVE, self.callbackChannelRemoveBan)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELBANCLEAR, self.callbackChannelClearBans)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELOP, self.callbackChannelOp)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELDEOP, self.callbackChannelDeop)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELCLEAROPS, self.callbackChannelClearOps)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELVOICE, self.callbackChannelVoice)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELDEVOICE, self.callbackChannelDevoice)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELCLEARVOICES, self.callbackChannelClearVoices)
+        self._state.deregisterCallback(self._state.CALLBACK_GLINEADD, self.callbackGlineAdd)
+        self._state.deregisterCallback(self._state.CALLBACK_GLINEREMOVE, self.callbackGlineRemove)
+        self._state.deregisterCallback(self._state.CALLBACK_INVITE, self.callbackInvite)
+        self._state.deregisterCallback(self._state.CALLBACK_JUPEADD, self.callbackJupeAdd)
+        self._state.deregisterCallback(self._state.CALLBACK_JUPEREMOVE, self.callbackJupeRemove)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTADMIN, self.callbackAdminInfo)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTINFO, self.callbackInfoRequest)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELKICK, self.callbackKick)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELPARTZOMBIE, self.callbackZombiePart)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELDESTROY, self.callbackChannelDestroy)
+        self._state.deregisterCallback(self._state.CALLBACK_QUIT, self.callbackQuit)
+        self._state.deregisterCallback(self._state.CALLBACK_KILL, self.callbackKill)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTLUSERS, self.callbackLusers)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTLINKS, self.callbackLinks)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTMOTD, self.callbackMOTD)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTNAMES, self.callbackNames)
+        self._state.deregisterCallback(self._state.CALLBACK_CHANNELTOPIC, self.callbackTopic)
+        self._state.deregisterCallback(self._state.CALLBACK_SILENCEADD, self.callbackSilenceAdd)
+        self._state.deregisterCallback(self._state.CALLBACK_SILENCEREMOVE, self.callbackSilenceRemove)
+        self._state.deregisterCallback(self._state.CALLBACK_SERVERQUIT, self.callbackSquit)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTVERSION, self.callbackRequestVersion)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTSTATS, self.callbackRequestStats)
+        self._state.deregisterCallback(self._state.CALLBACK_TRACE, self.callbackTrace)
+        self._state.deregisterCallback(self._state.CALLBACK_PING, self.callbackPing)
+        self._state.deregisterCallback(self._state.CALLBACK_PONG, self.callbackPong)
+        self._state.deregisterCallback(self._state.CALLBACK_REQUESTWHOIS, self.callbackRequestWhois)
+        self._state.deregisterCallback(self._state.CALLBACK_PRIVMSG, self.callbackPrivmsg)
+        self._state.deregisterCallback(self._state.CALLBACK_NOTICE, self.callbackNotice)
+        self._state.deregisterCallback(self._state.CALLBACK_WALLOPS, self.callbackWallops)
+        self._state.deregisterCallback(self._state.CALLBACK_WALLUSERS, self.callbackWallusers)
+        self._state.deregisterCallback(self._state.CALLBACK_WALLVOICES, self.callbackWallvoices)
+        self._state.deregisterCallback(self._state.CALLBACK_WALLCHOPS, self.callbackWallchops)
     
     def _setupParser(self):
         p = self._parser
@@ -271,7 +323,8 @@ class connection(asyncore.dispatcher):
         self._sendLine((self._state.getServerID(), None), "Y", [reason])
         
     def _sendBurst(self):
-        # Now we start listening 
+        # Now we start listening
+        self._setupCallbacks()
         self._sendLine((self._state.getServerID(), None), "EB", [])
     
     def writable(self):
@@ -327,16 +380,40 @@ class connection(asyncore.dispatcher):
         self.do_ping()
     
     def callbackNewUser(self, (origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            line = [nickname, str(hops + 1), str(ts), username, hostname]
+            modestr = "+"
+            modeargs = []
+            for mode in modes:
+                modestr += mode[0][1]
+                if mode[1] != None:
+                    modeargs.append(mode[1])
+            if modestr != "+":
+                line.append(modestr)
+            for modearg in modeargs:
+                line.append(modearg)
+            line.append(base64.toBase64(ip, 6))
+            line.append(base64.createNumeric(numeric))
+            line.append(fullname)
+            self._sendLine(origin, "N", line)
     
     def callbackChangeNick(self, (origin, numeric, newnick, newts)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            if origin != numeric:
+                self._sendLine(origin, "SN", [base64.createNumeric(numeric), newnick])
+            else:
+                self._sendLine(numeric, "N", [newnick, str(newts)])
     
     def callbackNewServer(self, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "S", [name, str(hops + 1), str(boot_ts), str(link_ts), protocol, base64.createNumeric((numeric, maxclient)), "+" + flags, description])
     
     def callbackSquit(self, (origin, numeric, reason, ts)):
-        pass
+        if numeric[0] == self.numeric:
+            self.close_connection()
+            self._sendLine(origin, "SQ", [self._state.getServerName(), "0", reason])
+        elif self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "SQ", [self._state.numeric2nick(numeric), str(ts), reason])
     
     def callbackAuthenticate(self, (origin, numeric, acname)):
         pass

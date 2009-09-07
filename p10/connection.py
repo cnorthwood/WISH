@@ -114,7 +114,7 @@ class connection(asyncore.dispatcher):
 
         # Send pass and server - don't use the parser at this point
         self._buffer += "PASS :" + self._password + "\r\n"
-        self._buffer += "SERVER " + self._state.getServerName() + " 1 " + str(self._state.ts()) + " " + str(self._state.ts()) + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerName() + "\r\n"
+        self._buffer += "SERVER " + self._state.getServerName() + " 1 " + str(self._state.ts()) + " " + str(self._state.ts()) + " J10 " + base64.createNumeric((self._state.getServerID(), 262143)) + " +s :" + self._state.getServerDescription() + "\r\n"
         self.connstate = self.CHALLENGED
         
         # Set up stuff for authentication

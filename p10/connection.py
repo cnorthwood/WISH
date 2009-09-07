@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 
-import threading
+# Things that aren't implemented:
+# * RPING
+# * RPONG
+# * ASLL
+# * UPING
+# * Actual numbers that this will see as a server
+
+#import threading
 import asyncore
 import socket
 
@@ -464,55 +471,92 @@ class connection(asyncore.dispatcher):
             self._sendLine(numeric, "J", ["0"])
     
     def callbackChannelChangeMode(self, (origin, name, mode)):
-        if mode[1] != None:
-            self._sendLine(origin, "M", [name, mode[0], mode[1], str(self._state.channels[name].ts)])
-        else:
-            self._sendLine(origin, "M", [name, mode[0], str(self._state.channels[name].ts)])
+        if self._state.getNextHop(origin) != self.numeric:
+            if mode[1] != None:
+                self._sendLine(origin, "M", [name, mode[0], str(mode[1]), str(self._state.channels[name].ts)])
+            else:
+                self._sendLine(origin, "M", [name, mode[0], str(self._state.channels[name].ts)])
     
     def callbackChannelAddBan(self, (origin, name, mask)):
-        pass
+        self.callbackChannelChangeMode((origin, name, ("+b", mask)))
     
     def callbackChannelRemoveBan(self, (origin, name, ban)):
-        pass
+        self.callbackChannelChangeMode((origin, name, ("-b", ban)))
     
     def callbackChannelClearBans(self, (origin, name)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "CM", [name, "b"])
     
     def callbackChannelOp(self, (origin, channel, user)):
         self.callbackChannelChangeMode((origin, channel, ("+o", base64.createNumeric(user))))
     
     def callbackChannelDeop(self, (origin, channel, user)):
-        pass
+        self.callbackChannelChangeMode((origin, channel, ("-o", base64.createNumeric(user))))
     
     def callbackChannelClearOps(self, (origin, name)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "CM", [name, "o"])
     
     def callbackChannelVoice(self, (origin, channel, user)):
         self.callbackChannelChangeMode((origin, channel, ("+v", base64.createNumeric(user))))
     
     def callbackChannelDevoice(self, (origin, channel, user)):
-        pass
+        self.callbackChannelChangeMode((origin, channel, ("-v", base64.createNumeric(user))))
     
     def callbackChannelClearVoices(self, (origin, name)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "CM", [name, "v"])
+    
+    def _getGline(self, mask):
+        for gline in self._state.glines():
+            if mask == gline[0]:
+                return gline
     
     def callbackGlineAdd(self, (origin, mask, target, expires, description)):
-        pass
+        gline = self._getGline(mask)
+        if self._state.getNextHop(origin) != self.numeric and target == None:
+            self._sendLine(origin, "GL", ["*", "+" + mask, str(expires - gline[4]), str(gline[4]), description])
+        elif self._state.getNextHop((target, None)) == self.numeric:
+            self._sendLine(origin, "GL", [base64.createNumeric((target, None)), "+" + mask, str(expires - gline[4]), str(gline[4]), description])
     
     def callbackGlineRemove(self, (origin, mask, target)):
-        pass
+        gline = self._getGline(mask)
+        if self._state.getNextHop(origin) != self.numeric and target == None:
+            self._sendLine(origin, "GL", ["*", "-" + mask, str(gline[2] - gline[4]), str(gline[4]), gline[1]])
+        elif self._state.getNextHop((target, None)) == self.numeric:
+            self._sendLine(origin, "GL", [base64.createNumeric((target, None)), "-" + mask, str(gline[2] - gline[4]), str(gline[4]), gline[1]])
     
     def callbackInvite(self, (origin, target, channel)):
-        pass
+        if self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "I", [self._state.numeric2nick(target), channel])
     
-    def callbackJupeAdd(self, (origin, target, server, expire, reason)):
-        pass
+    def _getJupe(self, server):
+        for jupe in self._state.jupes():
+            if server == jupe[0]:
+                return jupe
     
-    def callbackJupeRemove(self, (origin, target, server)):
-        pass
+    def callbackJupeAdd(self, (origin, server, target, expire, reason)):
+        jupe = self._getJupe(server)
+        if self._state.getNextHop(origin) != self.numeric and target == None:
+            self._sendLine(origin, "JU", ["*", "+" + server, str(expire - jupe[4]), str(jupe[4]), reason])
+        elif self._state.getNextHop((target, None)) == self.numeric:
+            self._sendLine(origin, "JU", [base64.createNumeric((target, None)), "+" + server, str(expire - jupe[4]), str(jupe[4]), reason])
+    
+    def callbackJupeRemove(self, (origin, server, target)):
+        jupe = self._getJupe(server)
+        if self._state.getNextHop(origin) != self.numeric and target == None:
+            self._sendLine(origin, "JU", ["*", "-" + server, str(jupe[2] - jupe[4]), str(jupe[4]), jupe[1]])
+        elif self._state.getNextHop((target, None)) == self.numeric:
+            self._sendLine(origin, "JU", [base64.createNumeric((target, None)), "-" + server, str(jupe[2] - jupe[4]), str(jupe[4]), jupe[1]])
     
     def callbackAdminInfo(self, (origin, target)):
-        pass
+        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
+            self._sendLine((self._state.getServerID(), None), "256", [base64.createNumeric(origin), "Administrative info about " + self._state.getServerName()])
+            self._sendLine((self._state.getServerID(), None), "257", [base64.createNumeric(origin), self._state.getServerDescription()])
+            self._sendLine((self._state.getServerID(), None), "258", [base64.createNumeric(origin), "Administrator is " + self._state.getAdminName()])
+            self._sendLine((self._state.getServerID(), None), "259", [base64.createNumeric(origin), self._state.getContactEmail()])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "AD", [base64.createNumeric(target)])
     
     def callbackInfoRequest(self, (origin, target)):
         pass

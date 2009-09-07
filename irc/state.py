@@ -49,6 +49,9 @@ class state:
     def getServerName(self):
         return self._config.serverName
     
+    def getServerDescription(self):
+        return self._config.serverDescription
+    
     def getAdminName(self):
         return self._config.adminNick
     
@@ -320,7 +323,7 @@ class state:
     def addJupe(self, origin, server, target, expire, ts, reason):
         if target == None or target == self.getServerID():
             self._jupes[server] = (reason, expire, True, ts, target == self.getServerID())
-        self._callback(self.CALLBACK_JUPEADD, (origin, target, server, expire, reason))
+        self._callback(self.CALLBACK_JUPEADD, (origin, server, target, expire, reason))
     
     def removeJupe(self, origin, server, target, ts):
         if target == None or target == self.getServerID():
@@ -330,7 +333,7 @@ class state:
                     self._deactivateJupe(server)
             finally:
                 self.lock.release()
-        self._callback(self.CALLBACK_JUPEREMOVE, (origin, target, server))
+        self._callback(self.CALLBACK_JUPEREMOVE, (origin, server, target))
     
     #
     # User handling

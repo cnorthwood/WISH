@@ -20,10 +20,20 @@ class TestableConnection(p10.connection.connection):
 class StateDouble:
     maxClientNumerics = dict({1: 262143})
     channels = dict({"#test": irc.state.channel("#test", 1234)})
+    def glines(self):
+        return [("*!test@example.com", "A test description", 3600, True, 1000), ("*!test8@example.com", "Another test description", 3634, True, 1234)]
+    def jupes(self):
+        return [("test.example.com", "A test description", 3600, True, 1000), ("test2.example.com", "Another test description", 3634, True, 1234)]
     def getServerID(self):
         return 1
     def getServerName(self):
         return "test.example.com"
+    def getAdminName(self):
+        return "tester"
+    def getContactEmail(self):
+        return "test@example.com"
+    def getServerDescription(self):
+        return "A testing server in Test, USA"
     def getNextHop(self, dest):
         if dest[0] == 1:
             return None
@@ -34,6 +44,10 @@ class StateDouble:
     def numeric2nick(self, numeric):
         if numeric == (3, None):
             return "test3.example.com"
+        elif numeric == (3, 2):
+            return "test"
+    def ts(self):
+        return 1000
 
 class ConnectionTest(unittest.TestCase):
     
@@ -210,6 +224,271 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackPartAll(((3, 6)))
         self.assertEquals([], c.insight)
+    
+    def testChannelChangeMode(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelChangeMode(((1, 6), "#test", ("+c", None)))
+        self.assertEquals([((1, 6), "M", ["#test", "+c", "1234"])], c.insight)
+    
+    def testChannelChangeModeIntArg(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelChangeMode(((1, 6), "#test", ("+l", 7)))
+        self.assertEquals([((1, 6), "M", ["#test", "+l", "7", "1234"])], c.insight)
+    
+    def testChannelChangeModeStringArg(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelChangeMode(((1, 6), "#test", ("+k", "string")))
+        self.assertEquals([((1, 6), "M", ["#test", "+k", "string", "1234"])], c.insight)
+    
+    def testChannelChangeModeIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelChangeMode(((2, 6), "#test", ("+c", None)))
+        self.assertEquals([], c.insight)
+    
+    def testChannelAddBan(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelAddBan(((1, 6), "#test", "*!*@test.example.com"))
+        self.assertEquals([((1, 6), "M", ["#test", "+b", "*!*@test.example.com", "1234"])], c.insight)
+    
+    def testChannelAddBanIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelAddBan(((3, 6), "#test", "*!*@test.example.com"))
+        self.assertEquals([], c.insight)
+    
+    def testChannelRemoveBan(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelRemoveBan(((1, 6), "#test", "*!*@test.example.com"))
+        self.assertEquals([((1, 6), "M", ["#test", "-b", "*!*@test.example.com", "1234"])], c.insight)
+    
+    def testChannelRemoveBanIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelRemoveBan(((3, 6), "#test", "*!*@test.example.com"))
+        self.assertEquals([], c.insight)
+    
+    def testChannelClearBans(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelClearBans(((1, 6), "#test"))
+        self.assertEquals([((1,6), "CM", ["#test", "b"])], c.insight)
+    
+    def testChannelClearBansIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelClearBans(((2, 6), "#test"))
+        self.assertEquals([], c.insight)
+    
+    def testChannelChannelOp(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelOp(((1, 6), "#test", (2, 3)))
+        self.assertEquals([((1, 6), "M", ["#test", "+o", "ACAAD", "1234"])], c.insight)
+    
+    def testChannelChannelOpIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelOp(((3, 6), "#test", (2, 3)))
+        self.assertEquals([], c.insight)
+    
+    def testChannelChannelDeop(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelDeop(((1, 6), "#test", (2,3)))
+        self.assertEquals([((1, 6), "M", ["#test", "-o", "ACAAD", "1234"])], c.insight)
+    
+    def testChannelChannelDeopIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelDeop(((2, 6), "#test", (2,3)))
+        self.assertEquals([], c.insight)
+    
+    def testChannelClearOps(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelClearOps(((1, 6), "#test"))
+        self.assertEquals([((1,6), "CM", ["#test", "o"])], c.insight)
+    
+    def testChannelClearOpsIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelClearOps(((2, 6), "#test"))
+        self.assertEquals([], c.insight)
+    
+    def testChannelChannelVoice(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelVoice(((1, 6), "#test", (2, 3)))
+        self.assertEquals([((1, 6), "M", ["#test", "+v", "ACAAD", "1234"])], c.insight)
+    
+    def testChannelChannelVoiceIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelVoice(((3, 6), "#test", (2, 3)))
+        self.assertEquals([], c.insight)
+    
+    def testChannelChannelDevoice(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelDevoice(((1, 6), "#test", (2,3)))
+        self.assertEquals([((1, 6), "M", ["#test", "-v", "ACAAD", "1234"])], c.insight)
+    
+    def testChannelChannelDevoiceIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelDevoice(((2, 6), "#test", (2,3)))
+        self.assertEquals([], c.insight)
+    
+    def testChannelClearVoices(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelClearVoices(((1, 6), "#test"))
+        self.assertEquals([((1,6), "CM", ["#test", "v"])], c.insight)
+    
+    def testChannelClearVoicesIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackChannelClearVoices(((2, 6), "#test"))
+        self.assertEquals([], c.insight)
+    
+    def testGlineAdd(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineAdd(((1, None), "*!test@example.com", None, 3600, "A test description"))
+        self.assertEquals([((1, None), "GL", ["*", "+*!test@example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testGlineAddIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineAdd(((2, None), "*!test@example.com", None, 2400, "A test description"))
+        self.assertEquals([], c.insight)
+    
+    def testGlineAddTarget(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineAdd(((1, None), "*!test@example.com", 3, 3600, "A test description"))
+        self.assertEquals([((1, None), "GL", ["AD", "+*!test@example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testGlineAddTargetIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineAdd(((1, None), "*!test@example.com", 9, 2400, "A test description"))
+        self.assertEquals([], c.insight)
+    
+    def testGlineRemove(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineRemove(((1, None), "*!test@example.com", None))
+        self.assertEquals([((1, None), "GL", ["*", "-*!test@example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testGlineRemoveIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineRemove(((3, None), "*!test@example.com", None))
+        self.assertEquals([], c.insight)
+    
+    def testGlineRemoveTarget(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineRemove(((1, None), "*!test@example.com", 2))
+        self.assertEquals([((1, None), "GL", ["AC", "-*!test@example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testGlineRemoveTargetIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackGlineRemove(((1, None), "*!test@example.com", 8))
+        self.assertEquals([], c.insight)
+    
+    def testInvite(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackInvite(((1, 6), (3, 2), "#test"))
+        self.assertEquals([((1,6), "I", ["test", "#test"])], c.insight)
+    
+    def testInviteIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackInvite(((1, 6), (7, 1), "#test"))
+        self.assertEquals([], c.insight)
+    
+    def testJupeAdd(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeAdd(((1, None), "test.example.com", None, 3600, "A test description"))
+        self.assertEquals([((1, None), "JU", ["*", "+test.example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testJupeAddIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeAdd(((2, None), "test.example.com", None, 2400, "A test description"))
+        self.assertEquals([], c.insight)
+    
+    def testJupeAddTarget(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeAdd(((1, None), "test.example.com", 3, 3600, "A test description"))
+        self.assertEquals([((1, None), "JU", ["AD", "+test.example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testJupeAddTargetIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeAdd(((1, None), "test.example.com", 9, 2400, "A test description"))
+        self.assertEquals([], c.insight)
+    
+    def testJupeRemove(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeRemove(((1, None), "test.example.com", None))
+        self.assertEquals([((1, None), "JU", ["*", "-test.example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testJupeRemoveIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeRemove(((3, None), "test.example.com", None))
+        self.assertEquals([], c.insight)
+    
+    def testJupeRemoveTarget(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeRemove(((1, None), "test.example.com", 2))
+        self.assertEquals([((1, None), "JU", ["AC", "-test.example.com", "2600", "1000", "A test description"])], c.insight)
+    
+    def testJupeRemoveTargetIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackJupeRemove(((1, None), "test.example.com", 8))
+        self.assertEquals([], c.insight)
+    
+    def testAdminSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAdminInfo(((1,6), (3, None)))
+        self.assertEquals([((1,6), "AD", ["AD"])], c.insight)
+    
+    def testAdminSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAdminInfo(((1,6), (7, None)))
+        self.assertEquals([], c.insight)
+    
+    def testAdminReply(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAdminInfo(((3,6), (1, None)))
+        self.assertEquals([((1,None), "256", ["ADAAG", "Administrative info about test.example.com"]), ((1,None), "257", ["ADAAG", "A testing server in Test, USA"]), ((1,None), "258", ["ADAAG", "Administrator is tester"]), ((1,None), "259", ["ADAAG", "test@example.com"])], c.insight)
+    
+    def testAdminReplyIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackAdminInfo(((7,6), (1, None)))
+        self.assertEquals([], c.insight)
+
 
 def main():
     unittest.main()

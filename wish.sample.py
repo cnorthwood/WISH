@@ -14,6 +14,9 @@ class WISHConfig:
     # Please set the name of this server here
     serverName = "beta.worldirc.org"
     
+    # A description of this server
+    serverDescription = "The WorldIRC Services Host"
+    
     # Please enter the numeric of this server
     numericID = 1
     

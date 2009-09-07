@@ -11,6 +11,7 @@ class ConfigDouble:
     contactEmail = "test@example.com"
     called = False
     hiddenUserMask = ".users.example.com"
+    serverDescription = "Example test"
 
 class ConnectionDouble:
     callbacks = []
@@ -64,9 +65,9 @@ class ConnectionDouble:
         self.callbacks.append("GlineRemove")
     def callbackInvite(self, (origin, target, channel)):
         self.callbacks.append("Invite")
-    def callbackJupeAdd(self, (origin, target, server, expire, reason)):
+    def callbackJupeAdd(self, (origin, server, target, expire, reason)):
         self.callbacks.append("JupeAdd")
-    def callbackJupeRemove(self, (origin, target, server)):
+    def callbackJupeRemove(self, (origin, server, target)):
         self.callbacks.append("JupeRemove")
     def callbackAdminInfo(self, (origin, target)):
         self.callbacks.append("RequestAdmin")
@@ -231,6 +232,11 @@ class StateTest(unittest.TestCase):
         c = ConfigDouble()
         s = irc.state.state(c)
         self.assertEqual("example.com", s.getServerName())
+    
+    def testGetServerDescription(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        self.assertEqual("Example test", s.getServerDescription())
     
     def testGetServerAdmin(self):
         c = ConfigDouble()

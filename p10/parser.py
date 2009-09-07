@@ -59,7 +59,7 @@ class parser:
         # Break up into token and body
         high_level_parts = string.split(None, 1)
         command = high_level_parts[0]
-        if not command.isupper():
+        if not command.isupper() and not command.isdigit():
             raise ProtocolError('Command not in uppercase', string)
         params = self._parseParams(high_level_parts[1])
         
@@ -78,7 +78,7 @@ class parser:
         high_level_parts = string.split(None, 2)
         origin = base64.parseNumeric(high_level_parts[0], self._maxclientnum)
         command = high_level_parts[1]
-        if not command.isupper():
+        if not command.isupper() and not command.isdigit():
             raise ProtocolError('Command not in uppercase', string)
         if len(high_level_parts) > 2:
             params = self._parseParams(high_level_parts[2])
@@ -109,7 +109,7 @@ class parser:
         # Check we're not sending things which are protocol violations
         if len(ret) > 512:
             raise ProtocolError('Line too long to send')
-        if not token.isupper():
+        if not token.isupper() and not token.isdigit():
             raise ProtocolError('Command not in uppercase during build')
         
         return ret

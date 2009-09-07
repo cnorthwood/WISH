@@ -126,6 +126,11 @@ class P10ParserTest(unittest.TestCase):
         d = CommandHandlerDouble()
         p.registerHandler("TEST", d)
         self.assertRaises(p10.parser.ProtocolError, p.parse, "ABAAB test foo\r\n")
+    
+    def testCanBuildNumberCommands(self):
+        p = p10.parser.parser(dict({1: 262143}))
+        d = CommandHandlerDouble()
+        self.assertEquals("AB 123 baz\n", p.build((1,None), "123", ["baz"]))
         
     def testNoLowercaseCommand(self):
         p = p10.parser.parser(dict({1: 262143}))

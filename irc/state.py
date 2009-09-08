@@ -19,7 +19,7 @@ class state:
     _config = None
     users = dict()
     channels = dict()
-    _servers = dict()
+    servers = dict()
     maxClientNumerics = dict()
     _glines = dict()
     _jupes = dict()
@@ -34,8 +34,8 @@ class state:
         self.users = dict()
         self.channels = dict()
         self._config = config
-        self._servers = dict()
-        self._servers[self.getServerID()] = server(None, self.getServerID(), self.getServerName(), 262143, self.ts(), self.ts(), "P10", 0, [], "WISH on " + self.getServerName())
+        self.servers = dict()
+        self.servers[self.getServerID()] = server(None, self.getServerID(), self.getServerName(), 262143, self.ts(), self.ts(), "P10", 0, [], "WISH on " + self.getServerName())
         self.maxClientNumerics = dict({self.getServerID(): 262143})
         self._glines = dict()
         self._jupes = dict()
@@ -214,7 +214,7 @@ class state:
     #
     
     def serverExists(self, numeric):
-        return numeric in self._servers
+        return numeric in self.servers
     
     def newServer(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
         """ Add a new server """
@@ -228,9 +228,9 @@ class state:
             else:
                 uplink = origin[0]
                 if self.serverExists(uplink):
-                    self._servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
+                    self.servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
                     self.maxClientNumerics[numeric] = maxclient
-                    self._servers[uplink].addChild(numeric)
+                    self.servers[uplink].addChild(numeric)
                 else:
                     raise StateError("Unknown server introduced a new server")
         finally:
@@ -238,8 +238,8 @@ class state:
         self._callback(self.CALLBACK_NEWSERVER, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description))
     
     def _getAllChildrenOf(self, numeric):
-        ret = self._servers[numeric].children
-        for child in self._servers[numeric].children:
+        ret = self.servers[numeric].children
+        for child in self.servers[numeric].children:
             ret = ret | self._getAllChildrenOf(child)
         return ret
     
@@ -250,7 +250,7 @@ class state:
         try:
             if self.serverExists(numeric[0]):
                 # Disregard bad TS's
-                if ts == 0 or ts == self._servers[numeric[0]].link_ts:
+                if ts == 0 or ts == self.servers[numeric[0]].link_ts:
                     # Build a set of all servers that will be lost in this split
                     serverstogo = self._getAllChildrenOf(numeric[0])
                     serverstogo.add(numeric[0])
@@ -258,9 +258,9 @@ class state:
                     for user in self.users.copy():
                         if user[0] in serverstogo:
                             self.quit(user, self.numeric2nick(numeric) + " split from the network", True)
-                    self._servers[origin[0]].children.remove(numeric[0])
+                    self.servers[origin[0]].children.remove(numeric[0])
                     for server in serverstogo:
-                        del self._servers[server]
+                        del self.servers[server]
                     callback = True
             else:
                 raise StateError("Server that does not exist was just squitted")
@@ -273,9 +273,9 @@ class state:
         """ Return which direction an entity is from here """
         if dest[0] == self.getServerID():
             return None
-        if dest[0] in self._servers[self.getServerID()].children:
+        if dest[0] in self.servers[self.getServerID()].children:
             return dest[0]
-        for server in self._servers[self.getServerID()].children:
+        for server in self.servers[self.getServerID()].children:
             if dest[0] in self._getAllChildrenOf(server):
                 return server
     
@@ -347,15 +347,15 @@ class state:
         for user in self.users:
             if nick == self.users[user].nickname:
                 return user
-        for server in self._servers:
-            if nick == self._servers[server].name:
+        for server in self.servers:
+            if nick == self.servers[server].name:
                 return (server, None)
     
     def numeric2nick(self, numeric):
         if self.userExists(numeric):
             return self.users[numeric].nickname
         elif self.serverExists(numeric[0]) and numeric[1] == None:
-            return self._servers[numeric[0]].name
+            return self.servers[numeric[0]].name
     
     def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         """ Change state to include a new user """
@@ -407,7 +407,7 @@ class state:
         if target[0] == self.getServerID():
             self.quit(target, "Killed (" + reason + ")")
         else:
-            self._callback(self.CALLBACK_KILL, (origin, target, [self._servers[self.getNextHop(origin)].name] + path, reason))
+            self._callback(self.CALLBACK_KILL, (origin, target, [self.servers[self.getNextHop(origin)].name] + path, reason))
     
     def changeNick(self, origin, numeric, newnick, newts):
         """ Change the nickname of a user on the network """
@@ -621,7 +621,7 @@ class state:
                 raise StateError("An invalid entity attempted to change a channel mode")
         finally:
             self.lock.release()
-        self._callback(self.CALLBACK_CHANNELMODECHANGE, (origin, name, mode))
+        self._callback(self.CALLBACK_CHANNELMODECHANGE, (origin, name, modes))
     
     def addChannelBan(self, origin, name, mask):
         """ Adds a ban to the channel. """

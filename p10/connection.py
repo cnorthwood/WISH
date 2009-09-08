@@ -10,6 +10,7 @@
 #import threading
 import asyncore
 import socket
+import fnmatch
 
 import base64
 import parser
@@ -470,38 +471,50 @@ class connection(asyncore.dispatcher):
         if self._state.getNextHop(numeric) != self.numeric:
             self._sendLine(numeric, "J", ["0"])
     
-    def callbackChannelChangeMode(self, (origin, name, mode)):
+    def callbackChannelChangeMode(self, (origin, name, modes)):
         if self._state.getNextHop(origin) != self.numeric:
-            if mode[1] != None:
-                self._sendLine(origin, "M", [name, mode[0], str(mode[1]), str(self._state.channels[name].ts)])
-            else:
-                self._sendLine(origin, "M", [name, mode[0], str(self._state.channels[name].ts)])
+            line = [name]
+            modestr = ""
+            curmode = ""
+            modeargs = []
+            for mode in modes:
+                if curmode != mode[0][0]:
+                    modestr += mode[0]
+                    curmode = mode[0][0]
+                else:
+                    modestr += mode[0][1]
+                if mode[1] != None:
+                    modeargs.append(str(mode[1]))
+            line.append(modestr)
+            line += modeargs
+            line.append(str(self._state.channels[name].ts))
+            self._sendLine(origin, "M", line)
     
     def callbackChannelAddBan(self, (origin, name, mask)):
-        self.callbackChannelChangeMode((origin, name, ("+b", mask)))
+        self.callbackChannelChangeMode((origin, name, [("+b", mask)]))
     
     def callbackChannelRemoveBan(self, (origin, name, ban)):
-        self.callbackChannelChangeMode((origin, name, ("-b", ban)))
+        self.callbackChannelChangeMode((origin, name, [("-b", ban)]))
     
     def callbackChannelClearBans(self, (origin, name)):
         if self._state.getNextHop(origin) != self.numeric:
             self._sendLine(origin, "CM", [name, "b"])
     
     def callbackChannelOp(self, (origin, channel, user)):
-        self.callbackChannelChangeMode((origin, channel, ("+o", base64.createNumeric(user))))
+        self.callbackChannelChangeMode((origin, channel, [("+o", base64.createNumeric(user))]))
     
     def callbackChannelDeop(self, (origin, channel, user)):
-        self.callbackChannelChangeMode((origin, channel, ("-o", base64.createNumeric(user))))
+        self.callbackChannelChangeMode((origin, channel, [("-o", base64.createNumeric(user))]))
     
     def callbackChannelClearOps(self, (origin, name)):
         if self._state.getNextHop(origin) != self.numeric:
             self._sendLine(origin, "CM", [name, "o"])
     
     def callbackChannelVoice(self, (origin, channel, user)):
-        self.callbackChannelChangeMode((origin, channel, ("+v", base64.createNumeric(user))))
+        self.callbackChannelChangeMode((origin, channel, [("+v", base64.createNumeric(user))]))
     
     def callbackChannelDevoice(self, (origin, channel, user)):
-        self.callbackChannelChangeMode((origin, channel, ("-v", base64.createNumeric(user))))
+        self.callbackChannelChangeMode((origin, channel, [("-v", base64.createNumeric(user))]))
     
     def callbackChannelClearVoices(self, (origin, name)):
         if self._state.getNextHop(origin) != self.numeric:
@@ -559,31 +572,122 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "AD", [base64.createNumeric(target)])
     
     def callbackInfoRequest(self, (origin, target)):
-        pass
+        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
+            infostr = "I know "
+            if len(self._state.servers) == 1:
+                infostr += "1 server and "
+            else:
+                infostr += str(len(self._state.servers)) + " servers and"
+            if len(self._state.users) == 1:
+                infostr += "1 user on "
+            else:
+                infostr += str(len(self._state.users)) + " users on"
+            if len(self._state.channels) == 1:
+                infostr += "1 channel."
+            else:
+                infostr += str(len(self._state.servers)) + " channels."
+            self._sendLine((self._state.getServerID(), None), "371", [base64.createNumeric(origin), infostr])
+            self._sendLine((self._state.getServerID(), None), "374", [base64.createNumeric(origin), "End of /INFO list"])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "F", [base64.createNumeric(target)])
     
     def callbackKick(self, (origin, channel, target, reason)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "K", [channel, base64.createNumeric(target), reason])
     
-    def callbackZombiePart(self, (origin, target)):
-        pass
+    def callbackZombiePart(self, (origin, channel)):
+        self.callbackChannelPart((origin, channel, "Zombie parting channel"))
     
     def callbackChannelDestroy(self, (origin, channel, ts)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "DE", [channel, str(ts)])
     
     def callbackQuit(self, (numeric, reason, causedbysquit)):
-        pass
+        if self._state.getNextHop(numeric) != self.numeric and not causedbysquit:
+            self._sendLine(numeric, "Q", [reason])
     
     def callbackKill(self, (origin, target, path, reason)):
-        pass
+        if self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "D", [base64.createNumeric(target), "!".join(path) + " (" + reason + ")"])
     
     def callbackLusers(self, (origin, target, dummy)):
-        pass
+        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
+            
+            infostr = "There is "
+            if len(self._state.users) == 1:
+                infostr += "1 user on "
+            else:
+                infostr += str(len(self._state.users)) + " users on"
+            if len(self._state.servers) == 1:
+                infostr += "1 server."
+            else:
+                infostr += str(len(self._state.servers)) + " servers."
+            self._sendLine((self._state.getServerID(), None), "251", [base64.createNumeric(origin), infostr])
+            
+            operators = 0
+            for user in self._state.users:
+                if self._state.users[user].hasMode("o"):
+                    operators += 1
+            if operators == 1:
+                infostr = "operator online."
+            else:
+                infostr = "operators online."
+            self._sendLine((self._state.getServerID(), None), "252", [base64.createNumeric(origin), str(operators), infostr])
+            
+            if len(self._state.channels) == 1:
+                infostr = "channel formed."
+            else:
+                infostr = "channels formed."
+            self._sendLine((self._state.getServerID(), None), "254", [base64.createNumeric(origin), str(len(self._state.channels)), infostr])
+            
+            local = 0
+            for user in self._state.users:
+                if user[0] == self._state.getServerID():
+                    local += 1
+            infostr = "I have "
+            if local == 1:
+                infostr += "1 client and "
+            else:
+                infostr += str(local) + " clients and "
+            if len(self._state.servers[self._state.getServerID()].children) == 1:
+                infostr += "1 server."
+            else:
+                infostr += str(len(self._state.servers[self._state.getServerID()].children)) + " servers."
+            self._sendLine((self._state.getServerID(), None), "255", [base64.createNumeric(origin), infostr])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "LU", [dummy, base64.createNumeric(target)])
     
     def callbackLinks(self, (origin, target, mask)):
-        pass
+        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
+            for server in self._state.servers:
+                if fnmatch.fnmatch(self._state.servers[server].name, mask):
+                    upstream = self._state.servers[server].origin
+                    if upstream == None:
+                        upstream = self._state.servers[self._state.getServerID()].name
+                    else:
+                        upstream = self._state.numeric2nick(upstream)
+                    self._sendLine((self._state.getServerID(), None), "364", [base64.createNumeric(origin), self._state.servers[server].name, upstream, str(self._state.servers[server].hops) + " " + self._state.servers[server].protocol + " " + self._state.servers[server].description])
+            self._sendLine((self._state.getServerID(), None), "365", [base64.createNumeric(origin), mask, "End of /LINKS list."])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "LI", [base64.createNumeric(target), mask])
     
     def callbackChangeUserMode(self, (numeric, modes)):
-        pass
+        if self._state.getNextHop(numeric) != self.numeric:
+            line = [self._state.numeric2nick(numeric)]
+            modestr = ""
+            curmode = ""
+            modeargs = []
+            for mode in modes:
+                if curmode != mode[0][0]:
+                    modestr += mode[0]
+                    curmode = mode[0][0]
+                else:
+                    modestr += mode[0][1]
+                if mode[1] != None:
+                    modeargs.append(str(mode[1]))
+            line.append(modestr)
+            line += modeargs
+            self._sendLine(numeric, "M", line)
     
     def callbackMOTD(self, (numeric, target)):
         pass

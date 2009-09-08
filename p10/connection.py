@@ -585,7 +585,7 @@ class connection(asyncore.dispatcher):
             if len(self._state.channels) == 1:
                 infostr += "1 channel."
             else:
-                infostr += str(len(self._state.servers)) + " channels."
+                infostr += str(len(self._state.channels)) + " channels."
             self._sendLine((self._state.getServerID(), None), "371", [base64.createNumeric(origin), infostr])
             self._sendLine((self._state.getServerID(), None), "374", [base64.createNumeric(origin), "End of /INFO list"])
         elif self._state.getNextHop(target) == self.numeric:

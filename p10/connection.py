@@ -577,11 +577,11 @@ class connection(asyncore.dispatcher):
             if len(self._state.servers) == 1:
                 infostr += "1 server and "
             else:
-                infostr += str(len(self._state.servers)) + " servers and"
+                infostr += str(len(self._state.servers)) + " servers and "
             if len(self._state.users) == 1:
                 infostr += "1 user on "
             else:
-                infostr += str(len(self._state.users)) + " users on"
+                infostr += str(len(self._state.users)) + " users on "
             if len(self._state.channels) == 1:
                 infostr += "1 channel."
             else:

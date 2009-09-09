@@ -665,7 +665,7 @@ class connection(asyncore.dispatcher):
                     if upstream == None:
                         upstream = self._state.servers[self._state.getServerID()].name
                     else:
-                        upstream = self._state.numeric2nick(upstream)
+                        upstream = self._state.numeric2nick((upstream, None))
                     self._sendLine((self._state.getServerID(), None), "364", [base64.createNumeric(origin), self._state.servers[server].name, upstream, str(self._state.servers[server].hops) + " " + self._state.servers[server].protocol + " " + self._state.servers[server].description])
             self._sendLine((self._state.getServerID(), None), "365", [base64.createNumeric(origin), mask, "End of /LINKS list."])
         elif self._state.getNextHop(target) == self.numeric:

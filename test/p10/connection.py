@@ -45,7 +45,11 @@ class StateDouble:
         else:
             return 6
     def numeric2nick(self, numeric):
-        if numeric == (3, None):
+        if numeric == (1, None):
+            return "test.example.com"
+        elif numeric == (2, None):
+            return "test2.example.com"
+        elif numeric == (3, None):
             return "test3.example.com"
         elif numeric == (1,6):
             return "localtest"
@@ -651,6 +655,16 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackLinks(((3,6), (1, None), "*"))
         self.assertEquals([((1,None), "364", ["ADAAG", "test.example.com", "test.example.com", "0 P10 A test description"]), ((1,None), "365", ["ADAAG", "*", "End of /LINKS list."])], c.insight)
+    
+    def testLinksReplyLong(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[1].children = set([2])
+        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description2")
+        s.servers[2].children = set([3])
+        s.servers[3] = irc.state.server(2, 3, "test3.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description3")
+        c.callbackLinks(((3,6), (1, None), "*"))
+        self.assertEquals([((1,None), "364", ["ADAAG", "test.example.com", "test.example.com", "0 P10 A test description"]), ((1,None), "364", ["ADAAG", "test2.example.com", "test.example.com", "0 P10 A test description2"]), ((1,None), "364", ["ADAAG", "test3.example.com", "test2.example.com", "0 P10 A test description3"]), ((1,None), "365", ["ADAAG", "*", "End of /LINKS list."])], c.insight)
     
     def testLinksReplyIfRelevant(self):
         s = StateDouble()

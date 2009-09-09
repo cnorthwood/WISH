@@ -713,7 +713,56 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackChangeUserMode(((2, 6), [("+c", None)]))
         self.assertEquals([], c.insight)
-
+    
+    def testMOTDSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackMOTD(((1,6), (3, None)))
+        self.assertEquals([((1,6), "MO", ["AD"])], c.insight)
+    
+    def testMOTDSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackMOTD(((1,6), (7, None)))
+        self.assertEquals([], c.insight)
+    
+    def testMOTDReply(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackMOTD(((3,6), (1, None)))
+        self.assertEquals([((1,None), "375", ["ADAAG", "test.example.com Message of the Day"]), ((1,None), "376", ["ADAAG", "End of /MOTD."])], c.insight)
+    
+    def testMOTDReplyIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackMOTD(((7,6), (1, None)))
+        self.assertEquals([], c.insight)
+    
+    def testNamesSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNames(((1,6), (3, None), ["#test"]))
+        self.assertEquals([((1,6), "E", ["#test", "AD"])], c.insight)
+    
+    def testNamesSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNames(((1,6), (7, None), ["#test"]))
+        self.assertEquals([], c.insight)
+    
+    def testNamesReply(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((1,6), "o")
+        s.channels["#test"].join((3,2), "v")
+        c.callbackNames(((3,6), (1, None), ["#test"]))
+        self.assertEquals([((1,None), "353", ["ADAAG", "=", "#test", "+test @localtest"]), ((1,None), "366", ["ADAAG", "#test", "End of /NAMES list."])], c.insight)
+    
+    def testNamesReplyIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNames(((7,6), (1, None), ["#test"]))
+        self.assertEquals([], c.insight)
 
 def main():
     unittest.main()

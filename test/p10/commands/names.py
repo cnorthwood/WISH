@@ -11,8 +11,8 @@ class StateDouble:
     def __init__(self):
         self.insight = None
     
-    def requestChannelUsers(self, origin, target, channel):
-        self.insight = (origin, target, channel)
+    def requestChannelUsers(self, origin, target, channels):
+        self.insight = (origin, target, channels)
 
 class NamesTest(unittest.TestCase):
     
@@ -20,7 +20,13 @@ class NamesTest(unittest.TestCase):
         s = StateDouble()
         a = p10.commands.names.names(s)
         a.handle((1,1), ["#test", "AB"])
-        self.assertEquals(((1,1), (1, None), "#test"), s.insight)
+        self.assertEquals(((1,1), (1, None), ["#test"]), s.insight)
+    
+    def testCallbackCalledMulti(self):
+        s = StateDouble()
+        a = p10.commands.names.names(s)
+        a.handle((1,1), ["#test,#foo", "AB"])
+        self.assertEquals(((1,1), (1, None), ["#test","#foo"]), s.insight)
     
 def main():
     unittest.main()

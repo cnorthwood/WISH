@@ -1520,7 +1520,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 18)
         n = self._setupCallbacks(s)
-        s.requestChannelUsers((1,1), (1, None), "#test")
+        s.requestChannelUsers((1,1), (1, None), ["#test"])
         self.assertEquals(["Names"], n.callbacks)
     
     def testSendNamesCallbackOriginExists(self):
@@ -1529,7 +1529,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 18)
         n = self._setupCallbacks(s)
-        self.assertRaises(irc.state.StateError, s.requestChannelUsers, (1,6), (1, None), "#test")
+        self.assertRaises(irc.state.StateError, s.requestChannelUsers, (1,6), (1, None), ["#test"])
         self.assertEquals([], n.callbacks)
     
     def testSendNamesCallbackTargetIsServer(self):
@@ -1538,7 +1538,7 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 18)
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.requestChannelUsers, (1,1), (1, 6), "#test")
+        self.assertRaises(p10.parser.ProtocolError, s.requestChannelUsers, (1,1), (1, 6), ["#test"])
         self.assertEquals([], n.callbacks)
     
     def testSendNamesCallbackChannelisChannel(self):
@@ -1546,8 +1546,34 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         n = self._setupCallbacks(s)
-        self.assertRaises(p10.parser.ProtocolError, s.requestChannelUsers, (1,1), (1, None), "#test")
+        s.requestChannelUsers((1,1), (1, None), ["#test"])
         self.assertEquals([], n.callbacks)
+    
+    def testSendNamesCallbackNotIfChannelIsP(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test", "example.com", [], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        s.channels["#test"].changeMode(("+p", None))
+        n = self._setupCallbacks(s)
+        s.requestChannelUsers((1,2), (1, None), ["#test"])
+        self.assertEquals([], n.callbacks)
+        s.requestChannelUsers((1,1), (1, None), ["#test"])
+        self.assertEquals(["Names"], n.callbacks)
+    
+    def testSendNamesCallbackNotIfChannelIsS(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
+        s.newUser((1, None), (1,2), "test2", "test", "example.com", [], 0, 0, 0, "Test User")
+        s.createChannel((1,1), "#test", 18)
+        s.channels["#test"].changeMode(("+p", None))
+        n = self._setupCallbacks(s)
+        s.requestChannelUsers((1,2), (1, None), ["#test"])
+        self.assertEquals([], n.callbacks)
+        s.requestChannelUsers((1,1), (1, None), ["#test"])
+        self.assertEquals(["Names"], n.callbacks)
     
     def testNumeric2Nick(self):
         c = ConfigDouble()

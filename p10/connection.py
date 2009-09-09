@@ -690,10 +690,31 @@ class connection(asyncore.dispatcher):
             self._sendLine(numeric, "M", line)
     
     def callbackMOTD(self, (numeric, target)):
-        pass
+        if target[0] == self._state.getServerID() and self._state.getNextHop(numeric) == self.numeric:
+            self._sendLine((self._state.getServerID(), None), "375", [base64.createNumeric(numeric), self._state.getServerName() + " Message of the Day"])
+            self._sendLine((self._state.getServerID(), None), "376", [base64.createNumeric(numeric), "End of /MOTD."])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(numeric, "MO", [base64.createNumeric(target)])
     
-    def callbackNames(self, (origin, target, channel)):
-        pass
+    def callbackNames(self, (origin, target, channels)):
+        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
+            for channel in channels:
+                if self._state.channels[channel].isop(origin):
+                    rstate = "@"
+                else:
+                    rstate = "="
+                names = ""
+                for user in self._state.channels[channel].users():
+                    prefix = ""
+                    if self._state.channels[channel].isop(user):
+                        prefix = "@"
+                    elif self._state.channels[channel].isvoice(user):
+                        prefix = "+"
+                    names += prefix + self._state.numeric2nick(user) + " "
+                self._sendLine((self._state.getServerID(), None), "353", [base64.createNumeric(origin), rstate, channel, names.strip()])
+            self._sendLine((self._state.getServerID(), None), "366", [base64.createNumeric(origin), ",".join(channels), "End of /NAMES list."])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "E", [",".join(channels), base64.createNumeric(target)])
     
     def callbackTopic(self, (origin, channel, topic, topic_ts, channel_ts)):
         pass

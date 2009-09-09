@@ -567,16 +567,22 @@ class state:
         """ Returns if a channel exists or not """
         return name in self.channels
     
-    def requestChannelUsers(self, origin, target, channel):
+    def requestChannelUsers(self, origin, target, channels):
         """ Callback for a request for a list of users on a channel (/names) """
         if self.userExists(origin):
-            if self.channelExists(channel):
-                if target[1] == None:
-                    self._callback(self.CALLBACK_REQUESTNAMES, (origin, target, channel))
-                else:
-                    raise p10.parser.ProtocolError("Names information can only be requested from servers")
+            if target[1] == None:
+                goodchannels = []
+                for channel in channels:
+                    # The channel must exist, and the user must be allowed to view those names
+                    # so the user can be an oper, or on the channel, or the channel is not private or secret
+                    if self.channelExists(channel) and (self.channels[channel].ison(origin) or
+                                                        self.users[origin].hasMode("o") or
+                                                        (not self.channels[channel].hasMode("p") and not self.channels[channel].hasMode("s"))):
+                        goodchannels.append(channel)
+                if len(goodchannels) > 0:
+                    self._callback(self.CALLBACK_REQUESTNAMES, (origin, target, goodchannels))
             else:
-                raise p10.parser.ProtocolError("Names information requested for a non-existant channel")
+                raise p10.parser.ProtocolError("Names information can only be requested from servers")
         else:
             raise StateError("Received a request for names info from a non-existant user")
     

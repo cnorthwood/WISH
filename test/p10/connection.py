@@ -763,6 +763,78 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackNames(((7,6), (1, None), ["#test"]))
         self.assertEquals([], c.insight)
+    
+    def testTopic(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackTopic(((1,6), "#test", "New topic", 1234, 12345))
+        self.assertEquals([((1,6), "T", ["#test", "12345", "1234", "New topic"])], c.insight)
+    
+    def testTopicIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackTopic(((2,6), "#test", "New topic", 1234, 1234))
+        self.assertEquals([], c.insight)
+    
+    def testSilenceAdd(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackSilenceAdd(((1,6), "*@example.com"))
+        self.assertEquals([((1,6), "U", ["*", "*@example.com"])], c.insight)
+    
+    def testSilenceAddIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackSilenceAdd(((2,6), "*@example.com"))
+        self.assertEquals([], c.insight)
+    
+    def testSilenceAdd(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackSilenceRemove(((1,6), "*@example.com"))
+        self.assertEquals([((1,6), "U", ["*", "-*@example.com"])], c.insight)
+    
+    def testSilenceAddIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackSilenceRemove(((2,6), "*@example.com"))
+        self.assertEquals([], c.insight)
+    
+    def testVersionSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestVersion(((1,6), (3, None)))
+        self.assertEquals([((1,6), "V", ["AD"])], c.insight)
+    
+    def testVersionSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestVersion(((1,6), (7, None)))
+        self.assertEquals([], c.insight)
+    
+    def testVersionReply(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestVersion(((3,6), (1, None)))
+        self.assertEquals([((1,None), "351", ["ADAAG", "The WorldIRC Service Host - http://www.pling.org.uk/projects/wish/"])], c.insight)
+    
+    def testVersionReplyIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestVersion(((7,6), (1, None)))
+        self.assertEquals([], c.insight)
+    
+    def testOobmsg(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackOobmsg(((1, None), (3,6), "123", ["Arg1", "Arg 2"]))
+        self.assertEquals([((1, None), "123", ["ADAAG", "Arg1", "Arg 2"])], c.insight)
+    
+    def testOobmsgIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackOobmsg(((1, None), (6,6), "123", ["Arg1", "Arg 2"]))
+        self.assertEquals([], c.insight)
 
 def main():
     unittest.main()

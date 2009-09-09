@@ -114,6 +114,8 @@ class ConnectionDouble:
         self.callbacks.append("Whois")
     def callbackPrivmsg(self, (origin, target, message)):
         self.callbacks.append("Privmsg")
+    def callbackOobmsg(self, args):
+        self.callbacks.append("Oobmsg")
     def callbackNotice(self, (origin, target, message)):
         self.callbacks.append("Notice")
     def callbackWallops(self, (origin, message)):
@@ -177,6 +179,7 @@ class StateTest(unittest.TestCase):
         s.registerCallback(irc.state.state.CALLBACK_PONG, n.callbackPong)
         s.registerCallback(irc.state.state.CALLBACK_REQUESTWHOIS, n.callbackRequestWhois)
         s.registerCallback(irc.state.state.CALLBACK_PRIVMSG, n.callbackPrivmsg)
+        s.registerCallback(irc.state.state.CALLBACK_OOBMSG, n.callbackOobmsg)
         s.registerCallback(irc.state.state.CALLBACK_NOTICE, n.callbackNotice)
         s.registerCallback(irc.state.state.CALLBACK_WALLOPS, n.callbackWallops)
         s.registerCallback(irc.state.state.CALLBACK_WALLUSERS, n.callbackWallusers)
@@ -2040,6 +2043,13 @@ class StateTest(unittest.TestCase):
         self.assertEquals(2, s.getNextHop((2, None)))
         s.newServer((2, None), 3, "test2.example.com", 1000, 1234, 1234, "P10", 1, "", "A test example server")
         self.assertEquals(2, s.getNextHop((3, None)))
+    
+    def testOobmsg(self):
+        c = ConfigDouble()
+        s = irc.state.state(c)
+        n = self._setupCallbacks(s)
+        s.oobmsg((1, None), (3,6), "123", ["Other arguments"])
+        self.assertEquals(["Oobmsg"], n.callbacks)
 
 def main():
     unittest.main()

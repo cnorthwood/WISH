@@ -187,6 +187,7 @@ class state:
     CALLBACK_PONG = "Pong"
     CALLBACK_REQUESTWHOIS = "Whois"
     CALLBACK_PRIVMSG = "Privmsg"
+    CALLBACK_OOBMSG = "Oobmsg"
     CALLBACK_NOTICE = "Notice"
     CALLBACK_WALLOPS = "Wallops"
     CALLBACK_WALLUSERS = "Wallusers"
@@ -900,6 +901,9 @@ class state:
     #
     # Messages
     #
+    
+    def oobmsg(self, origin, target, type, args):
+        self._callback(self.CALLBACK_OOBMSG, (origin, target, type, args))
     
     def privmsg(self, origin, target, message):
         if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):

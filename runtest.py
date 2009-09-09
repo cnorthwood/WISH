@@ -32,6 +32,7 @@ from test.p10.commands.motd import *
 from test.p10.commands.names import *
 from test.p10.commands.nick import *
 from test.p10.commands.notice import *
+from test.p10.commands.numberrelay import *
 from test.p10.commands.part import *
 from test.p10.commands.password import *
 from test.p10.commands.ping import *

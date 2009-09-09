@@ -40,6 +40,7 @@ import commands.motd
 import commands.names
 import commands.nick
 import commands.notice
+import commands.numberrelay
 import commands.part
 import commands.password
 import commands.ping
@@ -173,6 +174,7 @@ class connection(asyncore.dispatcher):
         self._state.registerCallback(self._state.CALLBACK_PONG, self.callbackPong)
         self._state.registerCallback(self._state.CALLBACK_REQUESTWHOIS, self.callbackRequestWhois)
         self._state.registerCallback(self._state.CALLBACK_PRIVMSG, self.callbackPrivmsg)
+        self._state.registerCallback(self._state.CALLBACK_OOBMSG, self.callbackOobmsg)
         self._state.registerCallback(self._state.CALLBACK_NOTICE, self.callbackNotice)
         self._state.registerCallback(self._state.CALLBACK_WALLOPS, self.callbackWallops)
         self._state.registerCallback(self._state.CALLBACK_WALLUSERS, self.callbackWallusers)
@@ -228,6 +230,7 @@ class connection(asyncore.dispatcher):
         self._state.deregisterCallback(self._state.CALLBACK_PONG, self.callbackPong)
         self._state.deregisterCallback(self._state.CALLBACK_REQUESTWHOIS, self.callbackRequestWhois)
         self._state.deregisterCallback(self._state.CALLBACK_PRIVMSG, self.callbackPrivmsg)
+        self._state.deregisterCallback(self._state.CALLBACK_OOBMSG, self.callbackOobmsg)
         self._state.deregisterCallback(self._state.CALLBACK_NOTICE, self.callbackNotice)
         self._state.deregisterCallback(self._state.CALLBACK_WALLOPS, self.callbackWallops)
         self._state.deregisterCallback(self._state.CALLBACK_WALLUSERS, self.callbackWallusers)
@@ -289,6 +292,22 @@ class connection(asyncore.dispatcher):
         p.registerHandler("WV", commands.wallvoices.wallvoices(self._state))
         p.registerHandler("W", commands.whois.whois(self._state))
         p.registerHandler("X", commands.whowas.whowas(self._state))
+        p.registerHandler("252", commands.numberrelay.numberrelay(self._state, "252"))
+        p.registerHandler("254", commands.numberrelay.numberrelay(self._state, "254"))
+        p.registerHandler("255", commands.numberrelay.numberrelay(self._state, "255"))
+        p.registerHandler("256", commands.numberrelay.numberrelay(self._state, "256"))
+        p.registerHandler("257", commands.numberrelay.numberrelay(self._state, "257"))
+        p.registerHandler("258", commands.numberrelay.numberrelay(self._state, "258"))
+        p.registerHandler("259", commands.numberrelay.numberrelay(self._state, "259"))
+        p.registerHandler("351", commands.numberrelay.numberrelay(self._state, "351"))
+        p.registerHandler("353", commands.numberrelay.numberrelay(self._state, "353"))
+        p.registerHandler("364", commands.numberrelay.numberrelay(self._state, "364"))
+        p.registerHandler("365", commands.numberrelay.numberrelay(self._state, "365"))
+        p.registerHandler("366", commands.numberrelay.numberrelay(self._state, "366"))
+        p.registerHandler("371", commands.numberrelay.numberrelay(self._state, "371"))
+        p.registerHandler("374", commands.numberrelay.numberrelay(self._state, "374"))
+        p.registerHandler("375", commands.numberrelay.numberrelay(self._state, "375"))
+        p.registerHandler("376", commands.numberrelay.numberrelay(self._state, "376"))
     
     def _sendLine(self, source_client, token, args):
         """ Send a line upsteam
@@ -717,16 +736,22 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "E", [",".join(channels), base64.createNumeric(target)])
     
     def callbackTopic(self, (origin, channel, topic, topic_ts, channel_ts)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "T", [channel, str(channel_ts), str(topic_ts), topic])
     
     def callbackSilenceAdd(self, (numeric, mask)):
-        pass
+        if self._state.getNextHop(numeric) != self.numeric:
+            self._sendLine(numeric, "U", ["*", mask])
     
     def callbackSilenceRemove(self, (numeric, mask)):
-        pass
+        if self._state.getNextHop(numeric) != self.numeric:
+            self._sendLine(numeric, "U", ["*", "-" + mask])
     
     def callbackRequestVersion(self, (origin, target)):
-        pass
+        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
+            self._sendLine((self._state.getServerID(), None), "351", [base64.createNumeric(origin), "The WorldIRC Service Host - http://www.pling.org.uk/projects/wish/"])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "V", [base64.createNumeric(target)])
     
     def callbackRequestStats(self, (origin, target, stat, arg)):
         pass
@@ -745,6 +770,10 @@ class connection(asyncore.dispatcher):
     
     def callbackPrivmsg(self, (origin, target, message)):
         pass
+    
+    def callbackOobmsg(self, (origin, target, type, args)):
+        if self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, type, [base64.createNumeric(target)] + args)
     
     def callbackNotice(self, (origin, target, message)):
         pass

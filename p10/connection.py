@@ -613,11 +613,11 @@ class connection(asyncore.dispatcher):
     def callbackLusers(self, (origin, target, dummy)):
         if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
             
-            infostr = "There is "
+            infostr = "There "
             if len(self._state.users) == 1:
-                infostr += "1 user on "
+                infostr += "is 1 user on "
             else:
-                infostr += str(len(self._state.users)) + " users on"
+                infostr += "are " + str(len(self._state.users)) + " users on "
             if len(self._state.servers) == 1:
                 infostr += "1 server."
             else:

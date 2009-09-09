@@ -18,10 +18,11 @@ class TestableConnection(p10.connection.connection):
         self.connstate = self.COMPLETE
 
 class StateDouble:
-    maxClientNumerics = dict({1: 262143})
-    users = dict({(1,1): irc.state.user((1,1), "test", "test", "example.com", [], 6, 0, 1234, "Joe Bloggs")})
-    servers = dict({1: irc.state.server(None, 1, "test.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")})
-    channels = dict({"#test": irc.state.channel("#test", 1234)})
+    def __init__(self):
+        self.maxClientNumerics = dict({1: 262143})
+        self.users = dict({(1,1): irc.state.user((1,1), "test", "test", "example.com", [], 6, 0, 1234, "Joe Bloggs")})
+        self.servers = dict({1: irc.state.server(None, 1, "test.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")})
+        self.channels = dict({"#test": irc.state.channel("#test", 1234)})
     def glines(self):
         return [("*!test@example.com", "A test description", 3600, True, 1000), ("*!test8@example.com", "Another test description", 3634, True, 1234)]
     def jupes(self):
@@ -517,6 +518,16 @@ class ConnectionTest(unittest.TestCase):
         c.callbackInfoRequest(((3,6), (1, None)))
         self.assertEquals([((1,None), "371", ["ADAAG", "I know 1 server and 1 user on 1 channel."]), ((1,None), "374", ["ADAAG", "End of /INFO list"])], c.insight)
     
+    def testInfoReplyPlural(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.users[(1,2)] = irc.state.user((1,2), "test2", "test", "example.com", [("+o", None)], 6, 0, 1234, "Joe Bloggs")
+        s.servers[1].children = set([2])
+        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        s.channels["#test2"] = irc.state.channel("#test2", 1234)
+        c.callbackInfoRequest(((3,6), (1, None)))
+        self.assertEquals([((1,None), "371", ["ADAAG", "I know 2 servers and 2 users on 2 channels."]), ((1,None), "374", ["ADAAG", "End of /INFO list"])], c.insight)
+    
     def testInfoReplyIfRelevant(self):
         s = StateDouble()
         c = TestableConnection(s)
@@ -606,6 +617,16 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackLusers(((3,6), (1, None), "Foo"))
         self.assertEquals([((1,None), "251", ["ADAAG", "There is 1 user on 1 server."]), ((1,None), "252", ["ADAAG", "0", "operators online."]), ((1,None), "254", ["ADAAG", "1", "channel formed."]), ((1,None), "255", ["ADAAG", "I have 1 client and 0 servers."])], c.insight)
+    
+    def testLusersReplyPlural(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.users[(1,2)] = irc.state.user((1,2), "test2", "test", "example.com", [("+o", None)], 6, 0, 1234, "Joe Bloggs")
+        s.servers[1].children = set([2])
+        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        s.channels["#test2"] = irc.state.channel("#test2", 1234)
+        c.callbackLusers(((3,6), (1, None), "Foo"))
+        self.assertEquals([((1,None), "251", ["ADAAG", "There are 2 users on 2 servers."]), ((1,None), "252", ["ADAAG", "1", "operator online."]), ((1,None), "254", ["ADAAG", "2", "channels formed."]), ((1,None), "255", ["ADAAG", "I have 2 clients and 1 server."])], c.insight)
     
     def testLusersReplyIfRelevant(self):
         s = StateDouble()

@@ -52,6 +52,12 @@ class BurstTest(unittest.TestCase):
         c.handle((1,None), ["#test", "8", "+c", "ABAAB,ABAAD:o"])
         self.assertEquals([((1,1), ""), ((1,3), "o")], s.users)
     
+    def testMultiUserWithMultiModesCreate(self):
+        s = StateDouble()
+        c = p10.commands.burst.burst(s)
+        c.handle((1,None), ["#test", "8", "+c", "ABAAB,ABAAD:o,ABAAE"])
+        self.assertEquals([((1,1), ""), ((1,3), "o"), ((1,4), "o")], s.users)
+    
     def testNoModeOnlyUsers(self):
         s = StateDouble()
         c = p10.commands.burst.burst(s)

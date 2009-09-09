@@ -856,7 +856,7 @@ class state:
                     if self.channels[channel].isvoice(user):
                         self.channels[channel].devoice(user)
                     else:
-                        raise StateError('Attempted to devoice a user that was not op on the channel')
+                        raise StateError('Attempted to devoice a user that was not voice on the channel')
                 else:
                     raise StateError('Attempted to devoice from a channel that does not exist')
             else:

@@ -29,11 +29,14 @@ class burst(genericcommand.genericcommand):
             
             # Handle users on the channel
             if len(args) > nextarg:
+                umodes = ""
                 for user in args[nextarg].split(','):
                     # Handle any user modes, but only if this is a new channel
                     user = user.split(":")
-                    if len(user) > 1 and cstatus:
-                        self._state.joinChannel(p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), args[0],user[1])
+                    if len(user) > 1:
+                        umodes = user[1]
+                    if cstatus:
+                        self._state.joinChannel(p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), args[0], umodes)
                     else:
                         self._state.joinChannel(p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), p10.base64.parseNumeric(user[0], self._state.maxClientNumerics), args[0], "")
                 nextarg = nextarg + 1

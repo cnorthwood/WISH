@@ -41,5 +41,5 @@ class PongTest(unittest.TestCase):
         r = ServerDouble()
         c = p10.commands.pong.pong(s, r)
         c.handle((1,None), ["AD", "AC"])
-        self.assertEquals([("AD", "AC")], s.insight)
+        self.assertEquals([((3, None), (2, None))], s.insight)
         self.assertFalse(r.pung)

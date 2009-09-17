@@ -15,4 +15,4 @@ class pong(genericcommand.genericcommand):
         if p10.base64.parseNumeric(args[1], self._state.maxClientNumerics) == (self._state.getServerID(), None):
             self._connection.registerPong()
         else:
-            self._state.registerPong(origin, args[0], args[1])
+            self._state.registerPong(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics), p10.base64.parseNumeric(args[1], self._state.maxClientNumerics))

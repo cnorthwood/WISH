@@ -748,9 +748,7 @@ class connection(asyncore.dispatcher):
             self._sendLine(numeric, "U", ["*", "-" + mask])
     
     def callbackRequestVersion(self, (origin, target)):
-        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
-            self._sendLine((self._state.getServerID(), None), "351", [base64.createNumeric(origin), "The WorldIRC Service Host - http://www.pling.org.uk/projects/wish/"])
-        elif self._state.getNextHop(target) == self.numeric:
+        if self._state.getNextHop(target) == self.numeric:
             self._sendLine(origin, "V", [base64.createNumeric(target)])
     
     def callbackRequestStats(self, (origin, target, stat, arg)):
@@ -760,10 +758,14 @@ class connection(asyncore.dispatcher):
         pass
     
     def callbackPing(self, (origin, source, target)):
-        pass
+        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
+            self._sendLine((self._state.getServerID(), None), "Z", [base64.createNumeric((self._state.getServerID(), None)), source])
+        elif self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "G", [source, base64.createNumeric(target)])
     
     def callbackPong(self, (origin, source, target)):
-        pass
+        if self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "Z", [base64.createNumeric(source), base64.createNumeric(target)])
     
     def callbackRequestWhois(self, (origin, target, search)):
         pass

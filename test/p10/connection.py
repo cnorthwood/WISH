@@ -812,18 +812,6 @@ class ConnectionTest(unittest.TestCase):
         c.callbackRequestVersion(((1,6), (7, None)))
         self.assertEquals([], c.insight)
     
-    def testVersionReply(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackRequestVersion(((3,6), (1, None)))
-        self.assertEquals([((1,None), "351", ["ADAAG", "The WorldIRC Service Host - http://www.pling.org.uk/projects/wish/"])], c.insight)
-    
-    def testVersionReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackRequestVersion(((7,6), (1, None)))
-        self.assertEquals([], c.insight)
-    
     def testOobmsg(self):
         s = StateDouble()
         c = TestableConnection(s)
@@ -834,6 +822,42 @@ class ConnectionTest(unittest.TestCase):
         s = StateDouble()
         c = TestableConnection(s)
         c.callbackOobmsg(((1, None), (6,6), "123", ["Arg1", "Arg 2"]))
+        self.assertEquals([], c.insight)
+    
+    def testPingSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPing(((1, None), "test", (3, None)))
+        self.assertEquals([((1,None), "G", ["test", "AD"])], c.insight)
+    
+    def testPingSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPing(((1, None), "test", (7, None)))
+        self.assertEquals([], c.insight)
+    
+    def testPingReply(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPing(((3, None), "test", (1, None)))
+        self.assertEquals([((1,None), "Z", ["AB", "test"])], c.insight)
+    
+    def testPingReplyIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPing(((7, None), "test", (1, None)))
+        self.assertEquals([], c.insight)
+    
+    def testPongSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPong(((1, None), (1, None), (3, None)))
+        self.assertEquals([((1,None), "Z", ["AB", "AD"])], c.insight)
+    
+    def testPongSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPong(((1, None), "test", (7, None)))
         self.assertEquals([], c.insight)
 
 def main():

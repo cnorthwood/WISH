@@ -3,6 +3,7 @@
 import sys
 import unittest
 from test.irc.state import *
+from test.irc.version import *
 from test.p10.base64 import *
 from test.p10.connection import *
 from test.p10.parser import *

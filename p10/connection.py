@@ -582,12 +582,7 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "JU", [base64.createNumeric((target, None)), "-" + server, str(jupe[2] - jupe[4]), str(jupe[4]), jupe[1]])
     
     def callbackAdminInfo(self, (origin, target)):
-        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
-            self._sendLine((self._state.getServerID(), None), "256", [base64.createNumeric(origin), "Administrative info about " + self._state.getServerName()])
-            self._sendLine((self._state.getServerID(), None), "257", [base64.createNumeric(origin), self._state.getServerDescription()])
-            self._sendLine((self._state.getServerID(), None), "258", [base64.createNumeric(origin), "Administrator is " + self._state.getAdminName()])
-            self._sendLine((self._state.getServerID(), None), "259", [base64.createNumeric(origin), self._state.getContactEmail()])
-        elif self._state.getNextHop(target) == self.numeric:
+        if self._state.getNextHop(target) == self.numeric:
             self._sendLine(origin, "AD", [base64.createNumeric(target)])
     
     def callbackInfoRequest(self, (origin, target)):

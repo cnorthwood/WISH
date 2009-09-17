@@ -492,18 +492,6 @@ class ConnectionTest(unittest.TestCase):
         c.callbackAdminInfo(((1,6), (7, None)))
         self.assertEquals([], c.insight)
     
-    def testAdminReply(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackAdminInfo(((3,6), (1, None)))
-        self.assertEquals([((1,None), "256", ["ADAAG", "Administrative info about test.example.com"]), ((1,None), "257", ["ADAAG", "A testing server in Test, USA"]), ((1,None), "258", ["ADAAG", "Administrator is tester"]), ((1,None), "259", ["ADAAG", "test@example.com"])], c.insight)
-    
-    def testAdminReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackAdminInfo(((7,6), (1, None)))
-        self.assertEquals([], c.insight)
-    
     def testInfoSend(self):
         s = StateDouble()
         c = TestableConnection(s)

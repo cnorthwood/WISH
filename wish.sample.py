@@ -37,6 +37,12 @@ upstreams = [
                 p10.connection.connection(state).start((HOSTNAME, PORT), PASSWORD)
             ]
 
+# Define any additional modules below as so
+modules =   [
+                irc.admin.admin(state),
+                irc.version.version(state)
+            ]
+
 # Execute!
 while len(upstreams) > 0:
     asyncore.loop()

@@ -504,28 +504,6 @@ class ConnectionTest(unittest.TestCase):
         c.callbackInfoRequest(((1,6), (7, None)))
         self.assertEquals([], c.insight)
     
-    def testInfoReply(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackInfoRequest(((3,6), (1, None)))
-        self.assertEquals([((1,None), "371", ["ADAAG", "I know 1 server and 1 user on 1 channel."]), ((1,None), "374", ["ADAAG", "End of /INFO list"])], c.insight)
-    
-    def testInfoReplyPlural(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        s.users[(1,2)] = irc.state.user((1,2), "test2", "test", "example.com", [("+o", None)], 6, 0, 1234, "Joe Bloggs")
-        s.servers[1].children = set([2])
-        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
-        s.channels["#test2"] = irc.state.channel("#test2", 1234)
-        c.callbackInfoRequest(((3,6), (1, None)))
-        self.assertEquals([((1,None), "371", ["ADAAG", "I know 2 servers and 2 users on 2 channels."]), ((1,None), "374", ["ADAAG", "End of /INFO list"])], c.insight)
-    
-    def testInfoReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackInfoRequest(((7,6), (1, None)))
-        self.assertEquals([], c.insight)
-    
     def testKick(self):
         s = StateDouble()
         c = TestableConnection(s)

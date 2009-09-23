@@ -40,6 +40,7 @@ upstreams = [
 # Define any additional modules below as so
 modules =   [
                 irc.admin.admin(state),
+                irc.info.info(state),
                 irc.version.version(state)
             ]
 

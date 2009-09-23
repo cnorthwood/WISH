@@ -586,23 +586,7 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "AD", [base64.createNumeric(target)])
     
     def callbackInfoRequest(self, (origin, target)):
-        if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
-            infostr = "I know "
-            if len(self._state.servers) == 1:
-                infostr += "1 server and "
-            else:
-                infostr += str(len(self._state.servers)) + " servers and "
-            if len(self._state.users) == 1:
-                infostr += "1 user on "
-            else:
-                infostr += str(len(self._state.users)) + " users on "
-            if len(self._state.channels) == 1:
-                infostr += "1 channel."
-            else:
-                infostr += str(len(self._state.channels)) + " channels."
-            self._sendLine((self._state.getServerID(), None), "371", [base64.createNumeric(origin), infostr])
-            self._sendLine((self._state.getServerID(), None), "374", [base64.createNumeric(origin), "End of /INFO list"])
-        elif self._state.getNextHop(target) == self.numeric:
+        if self._state.getNextHop(target) == self.numeric:
             self._sendLine(origin, "F", [base64.createNumeric(target)])
     
     def callbackKick(self, (origin, channel, target, reason)):

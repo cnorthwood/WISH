@@ -582,28 +582,6 @@ class ConnectionTest(unittest.TestCase):
         c.callbackLusers(((1,6), (7, None), "Foo"))
         self.assertEquals([], c.insight)
     
-    def testLusersReply(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackLusers(((3,6), (1, None), "Foo"))
-        self.assertEquals([((1,None), "251", ["ADAAG", "There is 1 user on 1 server."]), ((1,None), "252", ["ADAAG", "0", "operators online."]), ((1,None), "254", ["ADAAG", "1", "channel formed."]), ((1,None), "255", ["ADAAG", "I have 1 client and 0 servers."])], c.insight)
-    
-    def testLusersReplyPlural(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        s.users[(1,2)] = irc.state.user((1,2), "test2", "test", "example.com", [("+o", None)], 6, 0, 1234, "Joe Bloggs")
-        s.servers[1].children = set([2])
-        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
-        s.channels["#test2"] = irc.state.channel("#test2", 1234)
-        c.callbackLusers(((3,6), (1, None), "Foo"))
-        self.assertEquals([((1,None), "251", ["ADAAG", "There are 2 users on 2 servers."]), ((1,None), "252", ["ADAAG", "1", "operator online."]), ((1,None), "254", ["ADAAG", "2", "channels formed."]), ((1,None), "255", ["ADAAG", "I have 2 clients and 1 server."])], c.insight)
-    
-    def testLusersReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackLusers(((7,6), (1, None), "Foo"))
-        self.assertEquals([], c.insight)
-    
     def testLinksSend(self):
         s = StateDouble()
         c = TestableConnection(s)
@@ -615,40 +593,6 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackLinks(((1,6), (7, None), "*"))
         self.assertEquals([], c.insight)
-    
-    def testLinksReply(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackLinks(((3,6), (1, None), "*"))
-        self.assertEquals([((1,None), "364", ["ADAAG", "test.example.com", "test.example.com", "0 P10 A test description"]), ((1,None), "365", ["ADAAG", "*", "End of /LINKS list."])], c.insight)
-    
-    def testLinksReplyLong(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        s.servers[1].children = set([2])
-        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description2")
-        s.servers[2].children = set([3])
-        s.servers[3] = irc.state.server(2, 3, "test3.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description3")
-        c.callbackLinks(((3,6), (1, None), "*"))
-        self.assertEquals([((1,None), "364", ["ADAAG", "test.example.com", "test.example.com", "0 P10 A test description"]), ((1,None), "364", ["ADAAG", "test2.example.com", "test.example.com", "0 P10 A test description2"]), ((1,None), "364", ["ADAAG", "test3.example.com", "test2.example.com", "0 P10 A test description3"]), ((1,None), "365", ["ADAAG", "*", "End of /LINKS list."])], c.insight)
-    
-    def testLinksReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackLinks(((7,6), (1, None), "*"))
-        self.assertEquals([], c.insight)
-    
-    def testLinksReplyMask(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackLinks(((3,6), (1, None), "*est.example.com"))
-        self.assertEquals([((1,None), "364", ["ADAAG", "test.example.com", "test.example.com", "0 P10 A test description"]), ((1,None), "365", ["ADAAG", "*est.example.com", "End of /LINKS list."])], c.insight)
-    
-    def testLinksReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackLinks(((3,6), (1, None), "foobar.example.com"))
-        self.assertEquals([((1,None), "365", ["ADAAG", "foobar.example.com", "End of /LINKS list."])], c.insight)
     
     def testUserChangeMode(self):
         s = StateDouble()
@@ -692,18 +636,6 @@ class ConnectionTest(unittest.TestCase):
         c.callbackMOTD(((1,6), (7, None)))
         self.assertEquals([], c.insight)
     
-    def testMOTDReply(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackMOTD(((3,6), (1, None)))
-        self.assertEquals([((1,None), "375", ["ADAAG", "test.example.com Message of the Day"]), ((1,None), "376", ["ADAAG", "End of /MOTD."])], c.insight)
-    
-    def testMOTDReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackMOTD(((7,6), (1, None)))
-        self.assertEquals([], c.insight)
-    
     def testNamesSend(self):
         s = StateDouble()
         c = TestableConnection(s)
@@ -714,20 +646,6 @@ class ConnectionTest(unittest.TestCase):
         s = StateDouble()
         c = TestableConnection(s)
         c.callbackNames(((1,6), (7, None), ["#test"]))
-        self.assertEquals([], c.insight)
-    
-    def testNamesReply(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        s.channels["#test"].join((1,6), "o")
-        s.channels["#test"].join((3,2), "v")
-        c.callbackNames(((3,6), (1, None), ["#test"]))
-        self.assertEquals([((1,None), "353", ["ADAAG", "=", "#test", "+test @localtest"]), ((1,None), "366", ["ADAAG", "#test", "End of /NAMES list."])], c.insight)
-    
-    def testNamesReplyIfRelevant(self):
-        s = StateDouble()
-        c = TestableConnection(s)
-        c.callbackNames(((7,6), (1, None), ["#test"]))
         self.assertEquals([], c.insight)
     
     def testTopic(self):

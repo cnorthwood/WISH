@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-import sys
 import unittest
 from test.irc.admin import *
 from test.irc.info import *
+from test.irc.links import *
+from test.irc.lusers import *
+from test.irc.motd import *
+from test.irc.names import *
 from test.irc.state import *
 from test.irc.version import *
 from test.p10.base64 import *

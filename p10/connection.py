@@ -683,15 +683,34 @@ class connection(asyncore.dispatcher):
         if self._state.getNextHop(target) == self.numeric:
             self._sendLine(origin, "W", [base64.createNumeric(target), search])
     
+    def _multiTargetMessage(self, origin, target, type, message):
+        if self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, type, [base64.createNumeric(target), message])
+        elif target[0] == "#":
+            if self._state.getNextHop(origin) != self.numeric:
+                for user in self._state.channels[target].users():
+                    if self._state.getNextHop(user) == self.numeric:
+                        self._sendLine(origin, type, [target, message])
+        elif "@" in target:
+            target_parts = target.split("@")
+            if self._state.getNextHop(self._state.nick2numeric(target_parts[1])) == self.numeric:
+                self._sendLine(origin, type, [target, message])
+        elif "$" in target:
+            mask = target[1:]
+            for server in self._state.servers:
+                if self._state.getNextHop((server, None)) == self.numeric and fnmatch.fnmatch(self._state.servers[server].name, mask):
+                    self._sendLine(origin, type, [target, message])
+                    return
+    
     def callbackPrivmsg(self, (origin, target, message)):
-        pass
+        self._multiTargetMessage(origin, target, "P", message)
+    
+    def callbackNotice(self, (origin, target, message)):
+        self._multiTargetMessage(origin, target, "O", message)
     
     def callbackOobmsg(self, (origin, target, type, args)):
         if self._state.getNextHop(target) == self.numeric:
             self._sendLine(origin, type, [base64.createNumeric(target)] + args)
-    
-    def callbackNotice(self, (origin, target, message)):
-        pass
     
     def callbackWallops(self, (origin, message)):
         if self._state.getNextHop(origin) != self.numeric:

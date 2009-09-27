@@ -55,6 +55,11 @@ class StateDouble:
             return "localtest"
         elif numeric == (3, 2):
             return "test"
+    def nick2numeric(self, nick):
+        if nick == "test2.example.com":
+            return (2, None)
+        elif nick == "test9.example.com":
+            return (9, None)
     def ts(self):
         return 1000
 
@@ -881,6 +886,137 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackRequestStats(((1,6), (7, None), "B", None))
         self.assertEquals([], c.insight)
+    
+    def testPrivmsgPerson(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPrivmsg(((1, 6), (3,1), "A message"))
+        self.assertEquals([((1,6), "P", ["ADAAB", "A message"])], c.insight)
+    
+    def testPrivmsgPersonIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPrivmsg(((1, 6), (9,1), "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testPrivmsgLong(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPrivmsg(((1, 6), "test@test2.example.com", "A message"))
+        self.assertEquals([((1,6), "P", ["test@test2.example.com", "A message"])], c.insight)
+    
+    def testPrivmsgLongIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPrivmsg(((1, 6), "test@test9.example.com", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testPrivmsgChannel(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "")
+        c.callbackPrivmsg(((1, 6), "#test", "A message"))
+        self.assertEquals([((1,6), "P", ["#test", "A message"])], c.insight)
+    
+    def testPrivmsgChannelIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "")
+        c.callbackPrivmsg(((3, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testPrivmsgChannelIfSpecific(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackPrivmsg(((1, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testPrivmsgServer(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        c.callbackPrivmsg(((1,6), "$test2.example.com", "A message"))
+        self.assertEquals([((1,6), "P", ["$test2.example.com", "A message"])], c.insight)
+    
+    def testPrivmsgServerIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[9] = irc.state.server(1, 9, "test9.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        c.callbackPrivmsg(((1,6), "$test9.example.com", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testPrivmsgServerMask(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        c.callbackPrivmsg(((1,6), "$test*.example.com", "A message"))
+        self.assertEquals([((1,6), "P", ["$test*.example.com", "A message"])], c.insight)
+    
+    def testNoticePerson(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNotice(((1, 6), (3,1), "A message"))
+        self.assertEquals([((1,6), "O", ["ADAAB", "A message"])], c.insight)
+    
+    def testNoticePersonIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNotice(((1, 6), (9,1), "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testNoticeLong(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNotice(((1, 6), "test@test2.example.com", "A message"))
+        self.assertEquals([((1,6), "O", ["test@test2.example.com", "A message"])], c.insight)
+    
+    def testNoticeLongIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNotice(((1, 6), "test@test9.example.com", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testNoticeChannel(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "")
+        c.callbackNotice(((1, 6), "#test", "A message"))
+        self.assertEquals([((1,6), "O", ["#test", "A message"])], c.insight)
+    
+    def testNoticeChannelIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "")
+        c.callbackNotice(((3, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testNoticeChannelIfSpecific(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackNotice(((1, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testNoticeServer(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        c.callbackNotice(((1,6), "$test2.example.com", "A message"))
+        self.assertEquals([((1,6), "O", ["$test2.example.com", "A message"])], c.insight)
+    
+    def testNoticeServerIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[9] = irc.state.server(1, 9, "test9.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        c.callbackNotice(((1,6), "$test9.example.com", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testNoticeServerMask(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
+        c.callbackNotice(((1,6), "$test*.example.com", "A message"))
+        self.assertEquals([((1,6), "O", ["$test*.example.com", "A message"])], c.insight)
+
 
 def main():
     unittest.main()

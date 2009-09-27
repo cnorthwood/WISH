@@ -5,7 +5,7 @@
 # * RPONG
 # * ASLL
 # * UPING
-# * Actual numbers that this will see as a server
+# * WHOWAS
 
 #import threading
 import asyncore
@@ -659,10 +659,15 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "V", [base64.createNumeric(target)])
     
     def callbackRequestStats(self, (origin, target, stat, arg)):
-        pass
+        if self._state.getNextHop(target) == self.numeric:
+            if arg != None:
+                self._sendLine(origin, "R", [stat, base64.createNumeric(target), arg])
+            else:
+                self._sendLine(origin, "R", [stat, base64.createNumeric(target)])
     
     def callbackTrace(self, (origin, search, target)):
-        pass
+        if self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "TR", [search, base64.createNumeric(target)])
     
     def callbackPing(self, (origin, source, target)):
         if target[0] == self._state.getServerID() and self._state.getNextHop(origin) == self.numeric:
@@ -675,7 +680,8 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "Z", [base64.createNumeric(source), base64.createNumeric(target)])
     
     def callbackRequestWhois(self, (origin, target, search)):
-        pass
+        if self._state.getNextHop(target) == self.numeric:
+            self._sendLine(origin, "W", [base64.createNumeric(target), search])
     
     def callbackPrivmsg(self, (origin, target, message)):
         pass
@@ -688,16 +694,26 @@ class connection(asyncore.dispatcher):
         pass
     
     def callbackWallops(self, (origin, message)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "WA", [message])
     
     def callbackWallusers(self, (origin, message)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            self._sendLine(origin, "WU", [message])
     
     def callbackWallvoices(self, (origin, channel, message)):
-        pass
-    
+        if self._state.getNextHop(origin) != self.numeric:
+            for user in self._state.channels[channel].users():
+                if self._state.getNextHop(user) == self.numeric and (self._state.channels[channel].isvoice(user) or self._state.channels[channel].isop(user)):
+                    self._sendLine(origin, "WV", [channel, message])
+                    return
+        
     def callbackWallchops(self, (origin, channel, message)):
-        pass
+        if self._state.getNextHop(origin) != self.numeric:
+            for user in self._state.channels[channel].users():
+                if self._state.getNextHop(user) == self.numeric and self._state.channels[channel].isop(user):
+                    self._sendLine(origin, "WC", [channel, message])
+                    return
 
 
 class ConnectionError(Exception):

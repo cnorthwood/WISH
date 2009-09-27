@@ -743,6 +743,144 @@ class ConnectionTest(unittest.TestCase):
         c = TestableConnection(s)
         c.callbackPong(((1, None), "test", (7, None)))
         self.assertEquals([], c.insight)
+    
+    def testWallusers(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackWallusers(((6,2), "A message"))
+        self.assertEquals([((6,2), "WU", ["A message"])], c.insight)
+    
+    def testWallusersIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackWallusers(((3,2), "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testWallops(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackWallops(((6,2), "A message"))
+        self.assertEquals([((6,2), "WA", ["A message"])], c.insight)
+    
+    def testWallopsIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackWallops(((3,2), "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testWallvoices(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "v")
+        c.callbackWallvoices(((1, 6), "#test", "A message"))
+        self.assertEquals([((1,6), "WV", ["#test", "A message"])], c.insight)
+    
+    def testWallvoicesIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "v")
+        c.callbackWallvoices(((3, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testWallvoicesIfSpecific(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "")
+        c.callbackWallvoices(((1, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testWallvoicesIfOp(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "o")
+        c.callbackWallvoices(((1, 6), "#test", "A message"))
+        self.assertEquals([((1,6), "WV", ["#test", "A message"])], c.insight)
+    
+    def testWallvoicesOnlyOnce(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "v")
+        s.channels["#test"].join((3,9), "o")
+        c.callbackWallvoices(((1, 6), "#test", "A message"))
+        self.assertEquals([((1,6), "WV", ["#test", "A message"])], c.insight)
+    
+    def testWallchops(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "o")
+        c.callbackWallchops(((1, 6), "#test", "A message"))
+        self.assertEquals([((1,6), "WC", ["#test", "A message"])], c.insight)
+    
+    def testWallchopsIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "o")
+        c.callbackWallchops(((3, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testWallchopsIfSpecific(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "")
+        c.callbackWallchops(((1, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testWallchopsExcludesVoice(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "v")
+        c.callbackWallchops(((1, 6), "#test", "A message"))
+        self.assertEquals([], c.insight)
+    
+    def testWallchopsOnlyOnce(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((3,2), "o")
+        s.channels["#test"].join((3,9), "o")
+        c.callbackWallchops(((1, 6), "#test", "A message"))
+        self.assertEquals([((1,6), "WC", ["#test", "A message"])], c.insight)
+    
+    def testWhoisSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestWhois(((1,6), (3, None), "test"))
+        self.assertEquals([((1,6), "W", ["AD", "test"])], c.insight)
+    
+    def testWhoisSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestWhois(((1,6), (7, None), "test"))
+        self.assertEquals([], c.insight)
+    
+    def testTraceSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackTrace(((1,6), "test", (3, None)))
+        self.assertEquals([((1,6), "TR", ["test", "AD"])], c.insight)
+    
+    def testTraceSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackTrace(((1,6), "test", (7, None)))
+        self.assertEquals([], c.insight)
+    
+    def testStatsSend(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestStats(((1,6), (3, None), "B", "Search"))
+        self.assertEquals([((1,6), "R", ["B", "AD", "Search"])], c.insight)
+    
+    def testStatsSendNoExtra(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestStats(((1,6), (3, None), "B", None))
+        self.assertEquals([((1,6), "R", ["B", "AD"])], c.insight)
+    
+    def testStatsSendIfRelevant(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.callbackRequestStats(((1,6), (7, None), "B", None))
+        self.assertEquals([], c.insight)
 
 def main():
     unittest.main()

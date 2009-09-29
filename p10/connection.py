@@ -601,7 +601,7 @@ class connection(asyncore.dispatcher):
             self._sendLine(origin, "DE", [channel, str(ts)])
     
     def callbackQuit(self, (numeric, reason, causedbysquit)):
-        if self._state.getNextHop(numeric) != self.numeric and not causedbysquit:
+        if not causedbysquit and self._state.getNextHop(numeric) != self.numeric:
             self._sendLine(numeric, "Q", [reason])
     
     def callbackKill(self, (origin, target, path, reason)):

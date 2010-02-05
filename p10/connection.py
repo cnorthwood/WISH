@@ -365,7 +365,7 @@ class connection(asyncore.dispatcher):
         for child in self._state.servers[server].children:
             # Don't burst the server back to us
             if child != self.numeric:
-                self.__recursiveNewServer(child)
+                self.__recursiveBurstServer(child)
     
     def _sendBurst(self):
         # Now we start listening

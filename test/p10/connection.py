@@ -1037,6 +1037,24 @@ class ConnectionTest(unittest.TestCase):
             ((1, None), "B", ["#test", "1234"]),
             ((1, None), "EB", [])], c.insight)
     
+    def testSendBurstNotBackToSelf(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        c.numeric = 9
+        s.servers[9] = irc.state.server(1, 9, "test9.example.com", 262143, 1234, 1234, "P10", 0, [], "A test description")
+        s.servers[1].addChild(9)
+        c._sendBurst()
+        self.assertEquals([
+            ((1, None), "GL", ["*", "+*!test@example.com", "2600", "1000", "A test description"]),
+            ((1, None), "GL", ["*", "+*!test8@example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "GL", ["*", "-*!test3@example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "JU", ["*", "+test.example.com", "2600", "1000", "A test description"]),
+            ((1, None), "JU", ["*", "+test2.example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "JU", ["*", "-test9.example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "N", ["test", "1", "1234", "test", "example.com", "AAAAAG", "ABAAB", "Joe Bloggs"]),
+            ((1, None), "B", ["#test", "1234"]),
+            ((1, None), "EB", [])], c.insight)
+    
     def testSendBurstChannelModes(self):
         s = StateDouble()
         c = TestableConnection(s)

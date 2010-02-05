@@ -10,6 +10,8 @@ class TestableConnection(p10.connection.connection):
         self.insight = []
         p10.connection.connection.__init__(self, state)
         self.numeric = 2
+    def _setupCallbacks(self):
+        pass
     def _sendLine(self, origin, command, args):
         self.insight.append((origin, command, args))
     def registerCallback(self, callback, fn):
@@ -24,9 +26,9 @@ class StateDouble:
         self.servers = dict({1: irc.state.server(None, 1, "test.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")})
         self.channels = dict({"#test": irc.state.channel("#test", 1234)})
     def glines(self):
-        return [("*!test@example.com", "A test description", 3600, True, 1000), ("*!test8@example.com", "Another test description", 3634, True, 1234)]
+        return [("*!test@example.com", "A test description", 3600, True, 1000), ("*!test8@example.com", "Another test description", 3634, True, 1234), ("*!test3@example.com", "Inactive test description", 3634, False, 1234)]
     def jupes(self):
-        return [("test.example.com", "A test description", 3600, True, 1000), ("test2.example.com", "Another test description", 3634, True, 1234)]
+        return [("test.example.com", "A test description", 3600, True, 1000), ("test2.example.com", "Another test description", 3634, True, 1234), ("test9.example.com", "Inactive test description", 3634, False, 1234)]
     def getServerID(self):
         return 1
     def getServerName(self):
@@ -1016,6 +1018,132 @@ class ConnectionTest(unittest.TestCase):
         s.servers[2] = irc.state.server(1, 2, "test2.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")
         c.callbackNotice(((1,6), "$test*.example.com", "A message"))
         self.assertEquals([((1,6), "O", ["$test*.example.com", "A message"])], c.insight)
+    
+    def testSendBurst(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[9] = irc.state.server(1, 9, "test9.example.com", 262143, 1234, 1234, "P10", 0, [], "A test description")
+        s.servers[1].addChild(9)
+        c._sendBurst()
+        self.assertEquals([
+            ((1, None), "S", ["test9.example.com", "1", "1234", "1234", "P10", "AJ]]]", "+", "A test description"]),
+            ((1, None), "GL", ["*", "+*!test@example.com", "2600", "1000", "A test description"]),
+            ((1, None), "GL", ["*", "+*!test8@example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "GL", ["*", "-*!test3@example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "JU", ["*", "+test.example.com", "2600", "1000", "A test description"]),
+            ((1, None), "JU", ["*", "+test2.example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "JU", ["*", "-test9.example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "N", ["test", "1", "1234", "test", "example.com", "AAAAAG", "ABAAB", "Joe Bloggs"]),
+            ((1, None), "B", ["#test", "1234"]),
+            ((1, None), "EB", [])], c.insight)
+    
+    def testSendBurstChannelModes(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].changeMode(("+c", None))
+        s.channels["#test"].changeMode(("+i", None))
+        s.channels["#test"].changeMode(("+l", 28))
+        c._sendBurst()
+        self.assertEquals([
+            ((1, None), "GL", ["*", "+*!test@example.com", "2600", "1000", "A test description"]),
+            ((1, None), "GL", ["*", "+*!test8@example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "GL", ["*", "-*!test3@example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "JU", ["*", "+test.example.com", "2600", "1000", "A test description"]),
+            ((1, None), "JU", ["*", "+test2.example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "JU", ["*", "-test9.example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "N", ["test", "1", "1234", "test", "example.com", "AAAAAG", "ABAAB", "Joe Bloggs"]),
+            ((1, None), "B", ["#test", "1234", "+icl", "28"]),
+            ((1, None), "EB", [])], c.insight)
+    
+    def testSendBurstChannelUsers(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].join((1,1), "ov")
+        s.channels["#test"].join((1,2), "o")
+        s.channels["#test"].join((1,3), "o")
+        s.channels["#test"].join((1,4), "v")
+        s.channels["#test"].join((1,5), "v")
+        s.channels["#test"].join((1,8), "")
+        s.channels["#test"].join((1,10), "")
+        c._sendBurst()
+        self.assertEquals([
+            ((1, None), "GL", ["*", "+*!test@example.com", "2600", "1000", "A test description"]),
+            ((1, None), "GL", ["*", "+*!test8@example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "GL", ["*", "-*!test3@example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "JU", ["*", "+test.example.com", "2600", "1000", "A test description"]),
+            ((1, None), "JU", ["*", "+test2.example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "JU", ["*", "-test9.example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "N", ["test", "1", "1234", "test", "example.com", "AAAAAG", "ABAAB", "Joe Bloggs"]),
+            ((1, None), "B", ["#test", "1234", "ABAAK,ABAAI,ABAAE:v,ABAAF,ABAAD:o,ABAAC,ABAAB:ov"]),
+            ((1, None), "EB", [])], c.insight)
+    
+    def testSendBurstChannelBans(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].addBan("test!test@example.com")
+        s.channels["#test"].addBan("test5!t3st@example2.com")
+        c._sendBurst()
+        self.assertEquals([
+            ((1, None), "GL", ["*", "+*!test@example.com", "2600", "1000", "A test description"]),
+            ((1, None), "GL", ["*", "+*!test8@example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "GL", ["*", "-*!test3@example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "JU", ["*", "+test.example.com", "2600", "1000", "A test description"]),
+            ((1, None), "JU", ["*", "+test2.example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "JU", ["*", "-test9.example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "N", ["test", "1", "1234", "test", "example.com", "AAAAAG", "ABAAB", "Joe Bloggs"]),
+            ((1, None), "B", ["#test", "1234", "%test5!t3st@example2.com test!test@example.com"]),
+            ((1, None), "EB", [])], c.insight)
+    
+    def testSendBurstServersInOrder(self):
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.servers[9] = irc.state.server(1, 9, "test9.example.com", 262143, 1234, 1234, "P10", 1, [], "A test description")
+        s.servers[1].addChild(9)
+        s.servers[10] = irc.state.server(1, 10, "test10.example.com", 262143, 1234, 1234, "P10", 1, [], "A test description 2")
+        s.servers[1].addChild(10)
+        s.servers[13] = irc.state.server(10, 13, "test13.example.com", 262143, 1234, 1234, "P10", 2, [], "A test description 3")
+        s.servers[10].addChild(13)
+        s.servers[14] = irc.state.server(13, 14, "test14.example.com", 262143, 1234, 1234, "P10", 3, [], "A test description 4")
+        s.servers[13].addChild(14)
+        c._sendBurst()
+        self.assertEquals([
+            ((1, None), "S", ["test9.example.com", "2", "1234", "1234", "P10", "AJ]]]", "+", "A test description"]),
+            ((1, None), "S", ["test10.example.com", "2", "1234", "1234", "P10", "AK]]]", "+", "A test description 2"]),
+            ((10, None), "S", ["test13.example.com", "3", "1234", "1234", "P10", "AN]]]", "+", "A test description 3"]),
+            ((13, None), "S", ["test14.example.com", "4", "1234", "1234", "P10", "AO]]]", "+", "A test description 4"]),
+            ((1, None), "GL", ["*", "+*!test@example.com", "2600", "1000", "A test description"]),
+            ((1, None), "GL", ["*", "+*!test8@example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "GL", ["*", "-*!test3@example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "JU", ["*", "+test.example.com", "2600", "1000", "A test description"]),
+            ((1, None), "JU", ["*", "+test2.example.com", "2400", "1234", "Another test description"]),
+            ((1, None), "JU", ["*", "-test9.example.com", "2400", "1234", "Inactive test description"]),
+            ((1, None), "N", ["test", "1", "1234", "test", "example.com", "AAAAAG", "ABAAB", "Joe Bloggs"]),
+            ((1, None), "B", ["#test", "1234"]),
+            ((1, None), "EB", [])], c.insight)
+    
+    def testSendBurstMultiLineChannels(self):
+        # Lines headers have 16 (494 chars left)
+        # This test is terrible. It does check what's being output is actually correct
+        s = StateDouble()
+        c = TestableConnection(s)
+        s.channels["#test"].changeMode(("+c", None)) # +2 18/492
+        s.channels["#test"].changeMode(("+i", None)) # +1 19/491
+        s.channels["#test"].changeMode(("+l", 28)) # +4 23/487
+        s.channels["#test"].join((1,1), "ov") # +9
+        s.channels["#test"].join((1,2), "o") # +8
+        s.channels["#test"].join((1,3), "o") # +8
+        s.channels["#test"].join((1,4), "v") # +8
+        s.channels["#test"].join((1,5), "v") # +8
+        
+        for i in range(8, 151):
+            s.channels["#test"].join((1,i), "")
+        for i in range(1, 20):
+            s.channels["#test"].addBan("test" + str(i) + "!test@example.com")
+        
+        c._sendBurst()
+        
+        for line in c.insight:
+            self.failIf(len(" ".join(line[2])) > 505, len(" ".join(line[2])))
 
 
 def main():

@@ -637,9 +637,9 @@ class StateTest(unittest.TestCase):
         s = irc.state.state(c)
         s.newUser((1,None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1,1), "#test", 6)
-        self.assertEquals([(1,1)], s.channels["#test"].ops())
+        self.assertEquals(set([(1,1)]), s.channels["#test"].ops())
         s.clearChannelOps((1, 1), "#test")
-        self.assertEquals([], s.channels["#test"].ops())
+        self.assertEquals(set([]), s.channels["#test"].ops())
     
     def testClearOpsCallback(self):
         c = ConfigDouble()
@@ -729,9 +729,9 @@ class StateTest(unittest.TestCase):
         s.newUser((1, None), (1,1), "test", "test", "example.com", [("+o", None)], 0, 0, 0, "Test User")
         s.createChannel((1, 1), "#test", 6)
         s.joinChannel((1,1), (1,1), "#test", ["v"])
-        self.assertEquals([(1,1)], s.channels["#test"].voices())
+        self.assertEquals(set([(1,1)]), s.channels["#test"].voices())
         s.clearChannelVoices((1,1), "#test")
-        self.assertEquals([], s.channels["#test"].voices())
+        self.assertEquals(set([]), s.channels["#test"].voices())
     
     def testClearVoicesCallback(self):
         c = ConfigDouble()

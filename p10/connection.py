@@ -348,10 +348,167 @@ class connection(asyncore.dispatcher):
         """ TODO: Handles errors on the connection """
         print "ERROR: " + reason
         self._sendLine((self._state.getServerID(), None), "Y", [reason])
-        
+    
+    def __recursiveNewServer(self, server):
+        # We don't burst ourselves
+        if self._state.servers[server].numeric != self._state.getServerID():
+            self.callbackNewServer(((self._state.servers[server].origin, None),
+                                     self._state.servers[server].numeric,
+                                     self._state.servers[server].name,
+                                     self._state.servers[server].maxclient,
+                                     self._state.servers[server].boot_ts,
+                                     self._state.servers[server].link_ts,
+                                     self._state.servers[server].protocol,
+                                     self._state.servers[server].hops,
+                                     "".join(self._state.servers[server].flags),
+                                     self._state.servers[server].description))
+        for child in self._state.servers[server].children:
+            self.__recursiveNewServer(child)
+    
     def _sendBurst(self):
         # Now we start listening
         self._setupCallbacks()
+        
+        # Send servers
+        self.__recursiveNewServer(self._state.getServerID())
+        
+        # Send g-lines
+        for (mask, description, expires, active, mod_time) in self._state.glines():
+            if active:
+                self.callbackGlineAdd(((self._state.getServerID(), None), mask, None, expires, description))
+            else:
+                self.callbackGlineRemove(((self._state.getServerID(), None), mask, None))
+        
+        # Send jupes
+        for (mask, description, expires, active, mod_time) in self._state.jupes():
+            if active:
+                self.callbackJupeAdd(((self._state.getServerID(), None), mask, None, expires, description))
+            else:
+                self.callbackJupeRemove(((self._state.getServerID(), None), mask, None))
+        
+        # Send users
+        for user in self._state.users:
+            self.callbackNewUser((  (self._state.users[user].numeric[0], None),
+                                    self._state.users[user].numeric,
+                                    self._state.users[user].nickname,
+                                    self._state.users[user].username,
+                                    self._state.users[user].hostname,
+                                    self._state.users[user].modes(),
+                                    self._state.users[user].ip,
+                                    self._state.users[user].hops,
+                                    self._state.users[user].ts,
+                                    self._state.users[user].fullname))
+        
+        # Send channels
+        for channel in self._state.channels:
+            
+            # First part of burst
+            burst = [channel, str(self._state.channels[channel].ts)]
+            
+            # Channel modes
+            (modestr, modeargs) = self._buildModeString(self._state.channels[channel].modes())
+            
+            if modestr != "":
+                burst.append(modestr)
+            burst += modeargs
+            
+            # Get users on channel
+            users = self._state.channels[channel].users()
+            ovs = []
+            os = []
+            vs = []
+            plains = []
+            for user in users:
+                numeric = base64.createNumeric(user)
+                if "o" in users[user] and "v" in users[user]:
+                    ovs.append(numeric)
+                elif "o" in users[user]:
+                    os.append(numeric)
+                elif "v" in users[user]:
+                    vs.append(numeric)
+                else:
+                    plains.append(numeric)
+            
+            bans = self._state.channels[channel].bans
+            
+            done = False
+            
+            while not done:
+                # Limit to 510 in size
+                remaining = 510 - 6 # origin and token + spacing
+                for arg in burst:
+                    remaining -= len(arg)
+                    remaining -= 1 # space
+                
+                userstr = ''
+                
+                if len(plains) > 0:
+                    while len(plains) and remaining > 6:
+                        plain = plains.pop()
+                        userstr += plain + ","
+                        remaining -= len(plain) + 1
+                
+                if len(vs) > 0:
+                    first = True
+                    while len(vs) and remaining > 8:
+                        v = vs.pop()
+                        if first:
+                            userstr += v + ":v,"
+                            first = False
+                        else:
+                            userstr += v + ","
+                        remaining -= len(v) + 1
+                
+                if len(os) > 0:
+                    first = True
+                    while len(os) and remaining > 8:
+                        o = os.pop()
+                        if first:
+                            userstr += o + ":o,"
+                            first = False
+                        else:
+                            userstr += o + ","
+                        remaining -= len(o) + 1
+                
+                if len(ovs) > 0:
+                    first = True
+                    while len(ovs) and remaining > 9:
+                        ov = ovs.pop()
+                        if first:
+                            userstr += ov + ":ov,"
+                            first = False
+                        else:
+                            userstr += ov + ","
+                        remaining -= len(ov) + 1
+                
+                if userstr != '':
+                    burst.append(userstr[:-1])
+                
+                # Bans
+                
+                banstr = ''
+                
+                if len(bans) > 0:
+                    first = True
+                    while len(bans) and remaining > len(bans[-1]) + 1:
+                        ban = bans.pop()
+                        if first:
+                            banstr += "%" + ban
+                            first = False
+                        else:
+                            banstr += " " + ban
+                        remaining -= len(ban) + 1
+                
+                if banstr != '':
+                    burst.append(banstr)
+                
+                self._sendLine((self._state.getServerID(), None), "B", burst)
+                burst = [channel, str(self._state.channels[channel].ts)]
+                
+                # Check we're done
+                if len(plains) == 0 and len(vs) == 0 and len(os) == 0 and len(ovs) == 0 and len(bans) == 0:
+                    done = True
+        
         self._sendLine((self._state.getServerID(), None), "EB", [])
     
     def writable(self):
@@ -406,20 +563,28 @@ class connection(asyncore.dispatcher):
             nlb = self._data.find("\n")
         self.do_ping()
     
+    def _buildModeString(self, modes):
+        modestr = ""
+        curmode = ""
+        modeargs = []
+        for mode in modes:
+            if curmode != mode[0][0]:
+                modestr += mode[0]
+                curmode = mode[0][0]
+            else:
+                modestr += mode[0][1]
+            if mode[1] != None:
+                modeargs.append(str(mode[1]))
+        return (modestr, modeargs)
+    
     def callbackNewUser(self, (origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)):
         # Broadcast to all away from origin
         if self._state.getNextHop(origin) != self.numeric:
             line = [nickname, str(hops + 1), str(ts), username, hostname]
-            modestr = "+"
-            modeargs = []
-            for mode in modes:
-                modestr += mode[0][1]
-                if mode[1] != None:
-                    modeargs.append(mode[1])
-            if modestr != "+":
+            (modestr, modeargs) = self._buildModeString(modes)
+            if modestr != "":
                 line.append(modestr)
-            for modearg in modeargs:
-                line.append(modearg)
+            line += modeargs
             line.append(base64.toBase64(ip, 6))
             line.append(base64.createNumeric(numeric))
             line.append(fullname)
@@ -493,17 +658,7 @@ class connection(asyncore.dispatcher):
     def callbackChannelChangeMode(self, (origin, name, modes)):
         if self._state.getNextHop(origin) != self.numeric:
             line = [name]
-            modestr = ""
-            curmode = ""
-            modeargs = []
-            for mode in modes:
-                if curmode != mode[0][0]:
-                    modestr += mode[0]
-                    curmode = mode[0][0]
-                else:
-                    modestr += mode[0][1]
-                if mode[1] != None:
-                    modeargs.append(str(mode[1]))
+            (modestr, modeargs) = self._buildModeString(modes)
             line.append(modestr)
             line += modeargs
             line.append(str(self._state.channels[name].ts))
@@ -619,17 +774,7 @@ class connection(asyncore.dispatcher):
     def callbackChangeUserMode(self, (numeric, modes)):
         if self._state.getNextHop(numeric) != self.numeric:
             line = [self._state.numeric2nick(numeric)]
-            modestr = ""
-            curmode = ""
-            modeargs = []
-            for mode in modes:
-                if curmode != mode[0][0]:
-                    modestr += mode[0]
-                    curmode = mode[0][0]
-                else:
-                    modestr += mode[0][1]
-                if mode[1] != None:
-                    modeargs.append(str(mode[1]))
+            (modestr, modeargs) = self._buildModeString(modes)
             line.append(modestr)
             line += modeargs
             self._sendLine(numeric, "M", line)

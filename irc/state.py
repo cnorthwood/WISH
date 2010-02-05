@@ -543,9 +543,8 @@ class state:
                         self.clearChannelOps(origin, name)
                         self.clearChannelVoices(origin, name)
                         self.clearChannelBans(origin, name)
-                        for mode in self.channels[name].modes:
-                            if mode[1] != False:
-                                self.changeChannelMode(origin, name, ("-" + mode[0], None))
+                        for mode in self.channels[name].modes():
+                            self.changeChannelMode(origin, name, ("-" + mode[0], None))
                         if origin[1] != None:
                             self.joinChannel(origin, origin, name, ["o"], ts)
                         create_success = True
@@ -1068,6 +1067,10 @@ class user:
         else:
             return False
     
+    def modes(self):
+        """ Return the modes this user has """
+        return self._modes
+    
     def isAway(self):
         """ Return whether a user is away or not """
         if self.away_reason == None:
@@ -1109,7 +1112,7 @@ class channel:
     ts = 0
     _users = dict()
     zombies = set()
-    modes = dict()
+    _modes = dict()
     bans = []
     topic = ""
     topic_changer = ""
@@ -1120,7 +1123,7 @@ class channel:
         self.ts = ts
         self._users = dict()
         self.zombies = set()
-        self.modes = dict()
+        self._modes = dict()
         self.bans = []
         self.topic = ""
         self.topic_changer = ""
@@ -1142,18 +1145,29 @@ class channel:
     def changeMode(self, mode):
         """ Change a single mode associated with this channel """
         if mode[0][0] == "+" and mode[1] == None:
-            self.modes[mode[0][1]] = True
+            self._modes[mode[0][1]] = True
         elif mode[0][0] == "+" and mode[1] != None:
-            self.modes[mode[0][1]] = mode[1]
+            self._modes[mode[0][1]] = mode[1]
         else:
-            self.modes[mode[0][1]] = False
+            self._modes[mode[0][1]] = False
     
     def hasMode(self, mode):
         """ Return whether a channel has a mode (and if it's something with an option, what it is) """
-        if mode in self.modes:
-            return self.modes[mode]
+        if mode in self._modes:
+            return self._modes[mode]
         else:
             return False
+    
+    def modes(self):
+        ml = []
+        for mode in self._modes:
+            if self._modes[mode] == True:
+                ml.append(("+" + mode, None))
+            elif self._modes[mode] == False:
+                pass
+            else:
+                ml.append(("+" + mode, str(self._modes[mode])))
+        return ml
     
     def clearBans(self):
         """ Clears bans from the channel """
@@ -1188,10 +1202,10 @@ class channel:
             return False
     
     def ops(self):
-        ret = list()
+        ret = set()
         for user in self.users():
             if self.isop(user):
-                ret.append(user)
+                ret.add(user)
         return ret
     
     def op(self, numeric):
@@ -1212,10 +1226,10 @@ class channel:
             return False
     
     def voices(self):
-        ret = list()
+        ret = set()
         for user in self.users():
             if self.isvoice(user):
-                ret.append(user)
+                ret.add(user)
         return ret
     
     def voice(self, numeric):

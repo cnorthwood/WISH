@@ -6,7 +6,7 @@ class worldirc:
     
     def __init__(self, state):
         self._state = state
-        self._state.newUser(self._state.getServerID(), (self._state.getServerID(), 1), "W", "wish", "worldirc.org", [('+k', None)], 0, 0, 0, "The WorldIRC Test Bot")
+        self._state.newUser((self._state.getServerID(), None), (self._state.getServerID(), 1), "W", "wish", "worldirc.org", [('+k', None)], 0, 0, 0, "The WorldIRC Test Bot")
         self._state.registerCallback(self._state.CALLBACK_CHANNELCREATE, self.callbackChannelCreate)
     
 def callbackChannelCreate(self, (origin, name, ts)):

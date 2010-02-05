@@ -363,6 +363,7 @@ class connection(asyncore.dispatcher):
                                      self._state.servers[server].flags,
                                      self._state.servers[server].description))
         for child in self._state.servers[server].children:
+            # Don't burst the server back to us
             if child != self.numeric:
                 self.__recursiveNewServer(child)
     
@@ -371,7 +372,7 @@ class connection(asyncore.dispatcher):
         self._setupCallbacks()
         
         # Send servers
-        self.__recursiveBurstServer(self._state.getServerID(), self.numeric)
+        self.__recursiveBurstServer(self._state.getServerID())
         
         # Send g-lines
         for (mask, description, expires, active, mod_time) in self._state.glines():

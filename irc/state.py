@@ -1069,7 +1069,15 @@ class user:
     
     def modes(self):
         """ Return the modes this user has """
-        return self._modes
+        ml = []
+        for mode in self._modes:
+            if self._modes[mode] == True:
+                ml.append(("+" + mode, None))
+            elif self._modes[mode] == False:
+                pass
+            else:
+                ml.append(("+" + mode, str(self._modes[mode])))
+        return ml
     
     def isAway(self):
         """ Return whether a user is away or not """

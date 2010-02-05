@@ -360,7 +360,7 @@ class connection(asyncore.dispatcher):
                                      self._state.servers[server].link_ts,
                                      self._state.servers[server].protocol,
                                      self._state.servers[server].hops,
-                                     "".join(self._state.servers[server].flags),
+                                     self._state.servers[server].flags,
                                      self._state.servers[server].description))
         for child in self._state.servers[server].children:
             self.__recursiveNewServer(child)
@@ -601,7 +601,10 @@ class connection(asyncore.dispatcher):
     def callbackNewServer(self, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)):
         # Broadcast to all away from origin
         if self._state.getNextHop(origin) != self.numeric:
-            self._sendLine(origin, "S", [name, str(hops + 1), str(boot_ts), str(link_ts), protocol, base64.createNumeric((numeric, maxclient)), "+" + flags, description])
+            (modestr, modeargs) = self._buildModeString(flags)
+            if modestr == '':
+                modestr = '+'
+            self._sendLine(origin, "S", [name, str(hops + 1), str(boot_ts), str(link_ts), protocol, base64.createNumeric((numeric, maxclient)), modestr, description])
     
     def callbackSquit(self, (origin, numeric, reason, ts)):
         # If this uplink is the one being disconnected

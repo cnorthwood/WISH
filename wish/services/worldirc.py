@@ -21,7 +21,7 @@ class WBot():
         
         self._state.create_channel(
             (self._state.server_id, 1),
-            "#opers", self._state.ts()
+            "#opers", self._state.ts
         )
         
         self._state.register_callback(self._state.CALLBACK_CHANNELJOIN,

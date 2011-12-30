@@ -167,7 +167,7 @@ class Connection(asyncore.dispatcher):
         self._state.register_callback(self._state.CALLBACK_AUTHENTICATE,
                                       self.callback_authenticate)
         self._state.register_callback(self._state.CALLBACK_USERMODECHANGE,
-                                      self.callback_change_user_mMode)
+                                      self.callback_change_user_mode)
         self._state.register_callback(self._state.CALLBACK_AWAY,
                                       self.callback_away)
         self._state.register_callback(self._state.CALLBACK_BACK,

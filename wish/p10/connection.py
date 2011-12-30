@@ -1143,6 +1143,7 @@ class Connection(asyncore.dispatcher):
                 for user in self._state.channels[target].users:
                     if self._state.get_next_hop(user) == self.numeric:
                         self._send_line(origin, message_type, [target, message])
+                        return
         elif "@" in target:
             target_parts = target.split("@")
             target_numeric = self._state.nick2numeric(target_parts[1])

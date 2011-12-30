@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.connection
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.errors import ConnectionError
 
-class error(genericcommand.genericcommand):
-    """ Parses errors sent on-link """
+class ErrorHandler(BaseCommand):
+    """
+    Parses errors sent on-link
+    """
     
     def handle(self, origin, line):
-        raise p10.connection.ConnectionError("Error received from upstream server: " + line[-1])
+        raise ConnectionError(
+            "Error received from upstream server: " + line[-1]
+        )

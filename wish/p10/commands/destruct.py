@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class destruct(genericcommand.genericcommand):
+class DestructHandler(BaseCommand):
     
     def handle(self, origin, args):
-        self._state.destroyChannel(origin, args[0], int(args[1]))
+        self._state.destroy_channel(origin, args[0], int(args[1]))

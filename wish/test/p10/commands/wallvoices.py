@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.wallvoices
+from wish.p10.commands.wallvoices import WallVoicesHandler
 
-class StateDouble:
-    insight = []
+class StateDouble():
+    
     def __init__(self):
         self.insight = []
+    
     def wallvoices(self, origin, channel, message):
         self.insight.append((channel, message))
 
 class WallvoiceTest(unittest.TestCase):
     
-    def testWallvoice(self):
+    def test_wallvoice(self):
         s = StateDouble()
-        c = p10.commands.wallvoices.wallvoices(s)
+        c = WallVoicesHandler(s)
         c.handle((1,1), ["#test", "Test"])
         self.assertEquals([("#test", "Test")], s.insight)

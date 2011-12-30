@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class trace(genericcommand.genericcommand):
+class TraceHandler(BaseCommand):
     
     def handle(self, origin, args):
-        self._state.trace(origin, args[0], p10.base64.parseNumeric(args[1], self._state.maxClientNumerics))
+        self._state.trace(
+            origin,
+            args[0],
+            parse_numeric(args[1], self._state.max_client_numerics)
+        )

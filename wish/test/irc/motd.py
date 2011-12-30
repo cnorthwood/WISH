@@ -1,30 +1,42 @@
 #!/usr/bin/env python
 
 import unittest
-import irc.motd
 
-class StateDouble:
-    insight = []
-    users = dict()
-    servers = dict()
-    channels = dict()
+from wish.irc.motd import MotdResponder
+from wish.irc.state import User, Server, Channel
+
+class StateDouble():
+    
     def __init__(self):
         self.insight = []
-        self.maxClientNumerics = dict({1: 262143})
-        self.users = dict({(1,1): irc.state.user((1,1), "test", "test", "example.com", [], 6, 0, 1234, "Joe Bloggs")})
-        self.servers = dict({1: irc.state.server(None, 1, "test.example.com", 1234, 1234, 1234, "P10", 0, [], "A test description")})
-        self.channels = dict({"#test": irc.state.channel("#test", 1234)})
-    def getServerID(self):
+        self.max_client_numerics = {1: 262143}
+        self.users = {
+            (1,1): User((1,1), "test", "test", "example.com", [], 6, 0,
+                1234, "Joe Bloggs")
+        }
+        self.servers = {
+            1: Server(None, 1, "test.example.com", 1234, 1234, 1234, "P10", 0,
+                      [], "A test description")
+        }
+        self.channels = {
+            "#test": Channel("#test", 1234)
+        }
+    
+    @property
+    def server_id(self):
         return 1
+    
     def oobmsg(self, origin, target, type, args):
         self.insight.append((origin, type, target, args))
+        
     CALLBACK_REQUESTMOTD = "RequestMOTD"
-    def registerCallback(self, type, callbackfn):
+    def register_callback(self, type, callbackfn):
         pass
-    def getServerID(self):
-        return 1
-    def getServerName(self):
+    
+    @property
+    def server_name(self):
         return "test.example.com"
+    
     def numeric2nick(self, numeric):
         if numeric == (1, None):
             return "test.example.com"
@@ -37,19 +49,21 @@ class StateDouble:
         elif numeric == (3, 2):
             return "test"
 
-class IRCMOTDTest(unittest.TestCase):
+
+class IrcMotdTest(unittest.TestCase):
     
-    def testMOTDReply(self):
+    def test_motd__reply(self):
         s = StateDouble()
-        c = irc.motd.motd(s)
-        c.callbackMOTD(((3,6), (1, None)))
+        c = MotdResponder(s)
+        c.callback_motd((3,6), (1, None))
         self.assertEquals([((1,None), "375", (3,6), ["test.example.com Message of the Day"]), ((1,None), "376", (3,6), ["End of /MOTD."])], s.insight)
     
-    def testMOTDReplyIfRelevant(self):
+    def test_motd_reply_if_relevant(self):
         s = StateDouble()
-        c = irc.motd.motd(s)
-        c.callbackMOTD(((7,6), (2, None)))
+        c = MotdResponder(s)
+        c.callback_motd((7,6), (2, None))
         self.assertEquals([], s.insight)
+
 
 def main():
     unittest.main()

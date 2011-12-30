@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class squit(genericcommand.genericcommand):
+class SQuitHandler(BaseCommand):
     
     def handle(self, origin, args):
-        self._state.quitServer(origin, self._state.nick2numeric(args[0]), args[-1], int(args[1]))
+        self._state.quit_server(
+            origin, self._state.nick2numeric(args[0]), args[-1], int(args[1]))

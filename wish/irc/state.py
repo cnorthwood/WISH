@@ -1,137 +1,249 @@
-#!/usr/bin/env python
+"""
+WISH - the WorldIRC Service Host
 
-import time
-import p10.parser
-#import threading
+Maintaining server state
 
-# IRC masks are very similar to UNIX filename pattern matching, so we can cheat and use the same algorithm
+Copyright (c) 2009-2011, Chris Northwood
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of Chris Northwood nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
+# IRC masks are very similar to UNIX filename pattern matching, so we can cheat
+# and use the same algorithm
+from collections import defaultdict, namedtuple
 import fnmatch
+import time
 
-class DummyLock:
-    def acquire(self):
-        return True
-    def release(self):
-        return True
+from wish.p10.parser import ProtocolError
 
-class state:
-    """ Holds the state for the current connection """
-    
-    _config = None
-    users = dict()
-    channels = dict()
-    servers = dict()
-    maxClientNumerics = dict()
-    _glines = dict()
-    _jupes = dict()
-    lock = None
-    _callbacks = dict()
+class State():
+    """
+    Holds the state for the current connection
+    """
     
     #
     # Configuration of this server
     #
     
     def __init__(self, config):
+        """
+        Set up this state as a particular instance of an IRC server with the
+        defined configuration
+        """
+        
         self.users = dict()
         self.channels = dict()
         self._config = config
-        self.servers = dict()
-        self.servers[self.getServerID()] = server(None, self.getServerID(), self.getServerName(), 262143, self.ts(), self.ts(), "P10", 0, [], "WISH on " + self.getServerName())
-        self.maxClientNumerics = dict({self.getServerID(): 262143})
+        self.servers = {
+            self.server_id: Server(
+                None,
+                self.server_id,
+                self.server_name,
+                262143,
+                self.ts,
+                self.ts,
+                "P10",
+                0,
+                [],
+                "WISH on " + self.server_name)
+        }
+        self.max_client_numerics = {
+            self.server_id: 262143
+        }
+        
         self._glines = dict()
         self._jupes = dict()
-        #self.lock = threading.RLock()
-        self.lock = DummyLock()
-        self._callbacks = dict()
+        self._callbacks = defaultdict(list)
     
-    def getServerID(self):
-        return self._config.numericID
+    @property
+    def server_id(self):
+        return self._config.numeric_id
     
-    def getServerName(self):
-        return self._config.serverName
+    @property
+    def server_name(self):
+        return self._config.server_name
     
-    def getServerDescription(self):
-        return self._config.serverDescription
+    @property
+    def server_description(self):
+        return self._config.server_description
     
-    def getAdminName(self):
-        return self._config.adminNick
+    @property
+    def admin_name(self):
+        return self._config.admin_nick
     
-    def getContactEmail(self):
-        return self._config.contactEmail
+    @property
+    def contact_email(self):
+        return self._config.contact_email
     
-    def requestAdminInfo(self, origin, target):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTADMIN, (origin, target))
+    def request_admininfo(self, origin, target):
+        """
+        Handle with incoming requests for admin info
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTADMIN, origin, target)
             else:
-                raise p10.parser.ProtocolError("Admin information can only be requested from servers")
+                raise ProtocolError(
+                    "Admin information can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for admin info from a non-existant user")
+            raise StateError(
+                "Received a request for admin info from a non-existent user"
+            )
     
-    def requestServerInfo(self, origin, target):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTINFO, (origin, target))
+    def request_serverinfo(self, origin, target):
+        """
+        Handle requests for server info
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTINFO, origin, target)
             else:
-                raise p10.parser.ProtocolError("Server information can only be requested from servers")
+                raise ProtocolError(
+                    "Server information can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for server info from a non-existant user")
+            raise StateError(
+                "Received a request for server info from a non-existent user"
+            )
     
-    def requestLusers(self, origin, target, dummy):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTLUSERS, (origin, target, dummy))
+    def request_lusers(self, origin, target, dummy):
+        """
+        Handle requests for local user info
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTLUSERS,
+                               origin, target, dummy)
             else:
-                raise p10.parser.ProtocolError("Luser information can only be requested from servers")
+                raise ProtocolError(
+                    "Luser information can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for Luser info from a non-existant user")
+            raise StateError(
+                "Received a request for Luser info from a non-existent user"
+            )
     
-    def requestLinks(self, origin, target, mask):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTLINKS, (origin, target, mask))
+    def request_links(self, origin, target, mask):
+        """
+        Handle requests for links info
+        
+        Mask can specify a mask of which servers to obtain information on
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTLINKS,
+                               origin, target, mask)
             else:
-                raise p10.parser.ProtocolError("Links information can only be requested from servers")
+                raise ProtocolError(
+                    "Links information can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for links info from a non-existant user")
+            raise StateError(
+                "Received a request for links info from a non-existent user"
+            )
     
-    def requestMOTD(self, origin, target):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTMOTD, (origin, target))
+    def request_motd(self, origin, target):
+        """
+        Request the message of the day for the target server
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTMOTD, origin, target)
             else:
-                raise p10.parser.ProtocolError("MOTD can only be requested from servers")
+                raise ProtocolError(
+                    "MOTD can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for MOTD from a non-existant user")
+            raise StateError(
+                "Received a request for MOTD from a non-existent user"
+            )
     
-    def requestVersion(self, origin, target):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTVERSION, (origin, target))
+    def request_version(self, origin, target):
+        """
+        Request version of the target server
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTVERSION, origin, target)
             else:
-                raise p10.parser.ProtocolError("Version can only be requested from servers")
+                raise ProtocolError(
+                    "Version can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for version from a non-existant user")
+            raise StateError(
+                "Received a request for version from a non-existent user"
+            )
     
-    def requestStats(self, origin, target, stat, arg):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTSTATS, (origin, target, stat, arg))
+    def request_stats(self, origin, target, stat, arg):
+        """
+        Request some stats from a target server. The stat is the statistic to
+        request, and arg is an optional argument for some forms of stats
+        requests
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTSTATS,
+                               origin, target, stat, arg)
             else:
-                raise p10.parser.ProtocolError("Stats can only be requested from servers")
+                raise ProtocolError(
+                    "Stats can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for stats from a non-existant user")
+            raise StateError(
+                "Received a request for stats from a non-existent user"
+            )
     
     def trace(self, origin, search, target):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_TRACE, (origin, search, target))
+        """
+        Trace a path to the target
+        """
+        
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_TRACE, origin, search, target)
             else:
-                raise p10.parser.ProtocolError("Traces can only be requested from servers")
+                raise ProtocolError(
+                    "Traces can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for a trace from a non-existant user")
+            raise StateError(
+                "Received a request for a trace from a non-existent user"
+            )
     
+    @property
     def ts(self):
-        """ Returns our current timestamp """
+        """
+        Returns our current timestamp
+        """
         return int(time.time())
     
     #
@@ -194,101 +306,120 @@ class state:
     CALLBACK_WALLVOICES = "Wallvoices"
     CALLBACK_WALLCHOPS = "Wallchops"
     
-    def registerCallback(self, type, callbackfn):
-        if type in self._callbacks:
-            self._callbacks[type].append(callbackfn)
-        else:
-            self._callbacks[type] = [callbackfn]
+    def register_callback(self, callback, callbackfn):
+        self._callbacks[callback].append(callbackfn)
     
-    def deregisterCallback(self, type, callbackfn):
-        if type in self._callbacks:
-            if callbackfn in self._callbacks[type]:
-                self._callbacks[type].remove(callbackfn)
+    def deregister_callback(self, callback, callbackfn):
+        if callbackfn in self._callbacks[callback]:
+            self._callbacks[callback].remove(callbackfn)
     
-    def _callback(self, type, args):
-        if type in self._callbacks:
-            for callback in self._callbacks[type]:
-                callback(args)
+    def _callback(self, callback, *args):
+        for callback in self._callbacks.get(callback, []):
+            callback(*args)
     
     #
     # Other servers
     #
     
-    def serverExists(self, numeric):
+    def server_exists(self, numeric):
         return numeric in self.servers
     
-    def newServer(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
-        """ Add a new server """
+    def new_server(self, origin, numeric, name, maxclient, boot_ts, link_ts,
+                   protocol, hops, flags, description):
+        """
+        Add a new server
+        """
+        
         # TODO: More stringent checks - do we have a name clash?
-        self.lock.acquire()
-        try:
-            if self.serverExists(numeric):
-                raise StateError("Attempted to add a duplicate server")
-            elif origin[1] != None:
-                raise p10.parser.ProtocolError("User attempted to add a server")
+        if self.server_exists(numeric):
+            raise StateError("Attempted to add a duplicate server")
+        elif origin[1] != None:
+            raise ProtocolError("User attempted to add a server")
+        else:
+            uplink = origin[0]
+            if self.server_exists(uplink):
+                self.servers[numeric] = Server(
+                    uplink, numeric, name, maxclient, boot_ts, link_ts,
+                    protocol, hops, flags, description
+                )
+                self.max_client_numerics[numeric] = maxclient
+                self.servers[uplink].add_child(numeric)
             else:
-                uplink = origin[0]
-                if self.serverExists(uplink):
-                    self.servers[numeric] = server(uplink, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description)
-                    self.maxClientNumerics[numeric] = maxclient
-                    self.servers[uplink].addChild(numeric)
-                else:
-                    raise StateError("Unknown server introduced a new server")
-        finally:
-           self.lock.release()
-        self._callback(self.CALLBACK_NEWSERVER, (origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description))
+                raise StateError("Unknown server introduced a new server")
+        self._callback(self.CALLBACK_NEWSERVER, origin, numeric, name,
+                       maxclient, boot_ts, link_ts, protocol, hops, flags,
+                       description)
     
-    def _getAllChildrenOf(self, numeric):
+    def _get_all_children_of(self, numeric):
+        """
+        Returns all children of a specific server
+        """
         ret = self.servers[numeric].children
         for child in self.servers[numeric].children:
-            ret = ret | self._getAllChildrenOf(child)
+            ret = ret | self._get_all_children_of(child)
         return ret
     
-    def quitServer(self, origin, numeric, reason, ts):
-        """ A server splits from the network """
+    def quit_server(self, origin, numeric, reason, ts):
+        """
+        A server splits from the network
+        """
+        
         callback = False
-        self.lock.acquire()
-        try:
-            if self.serverExists(numeric[0]):
-                # Disregard bad TS's
-                if ts == 0 or ts == self.servers[numeric[0]].link_ts:
-                    # Build a set of all servers that will be lost in this split
-                    serverstogo = self._getAllChildrenOf(numeric[0])
-                    serverstogo.add(numeric[0])
-                    # Quit every user that is on these servers. Channels are automatically cleaned up by quit.
-                    for user in self.users.copy():
-                        if user[0] in serverstogo:
-                            self.quit(user, self.numeric2nick(numeric) + " split from the network", True)
-                    self.servers[origin[0]].children.remove(numeric[0])
-                    for server in serverstogo:
-                        del self.servers[server]
-                    callback = True
-            else:
-                raise StateError("Server that does not exist was just squitted")
-        finally:
-            self.lock.release()
+        if self.server_exists(numeric[0]):
+            # Disregard bad TS's
+            if ts == 0 or ts == self.servers[numeric[0]].link_ts:
+                # Build a set of all servers that will be lost in this split
+                serverstogo = self._get_all_children_of(numeric[0])
+                serverstogo.add(numeric[0])
+                # Quit every user that is on these servers. Channels are
+                # automatically cleaned up by quit.
+                for user in self.users.copy():
+                    if user[0] in serverstogo:
+                        self.quit(
+                            user,
+                            "%s split from the network" % (
+                                self.numeric2nick(numeric)
+                            ),
+                            True)
+                self.servers[origin[0]].children.remove(numeric[0])
+                for server in serverstogo:
+                    del self.servers[server]
+                callback = True
+        else:
+            raise StateError("Server that does not exist was just squitted")
         if callback:
-            self._callback(self.CALLBACK_SERVERQUIT, (origin, numeric, reason, ts))
+            self._callback(self.CALLBACK_SERVERQUIT,
+                           origin, numeric, reason, ts)
     
-    def getNextHop(self, dest):
-        """ Return which direction an entity is from here """
-        if dest[0] == self.getServerID():
+    def get_next_hop(self, dest):
+        """
+        Return which direction an entity is from here
+        """
+        if dest[0] == self.server_id:
             return None
-        if dest[0] in self.servers[self.getServerID()].children:
+        if dest[0] in self.servers[self.server_id].children:
             return dest[0]
-        for server in self.servers[self.getServerID()].children:
-            if dest[0] in self._getAllChildrenOf(server):
+        for server in self.servers[self.server_id].children:
+            if dest[0] in self._get_all_children_of(server):
                 return server
     
-    def registerPing(self, origin, source, target):
-        if self.serverExists(origin[0]) and origin[1] == None:
-            self._callback(self.CALLBACK_PING, (origin, source, target))
+    def register_ping(self, origin, source, target):
+        """
+        Handle pings received from other servers
+        """
+        
+        if self.server_exists(origin[0]) and origin[1] == None:
+            self._callback(self.CALLBACK_PING, origin, source, target)
         else:
             raise StateError("Ping received by non-server")
     
-    def registerPong(self, origin, source, target):
-        if self.serverExists(origin[0]) and origin[1] == None:
-            self._callback(self.CALLBACK_PONG, (origin, source, target))
+    def register_pong(self, origin, source, target):
+        """
+        Handle pongs received from other servers
+        """
+        
+        if self.server_exists(origin[0]) and origin[1] == None:
+            self._callback(self.CALLBACK_PONG, origin, source, target)
         else:
             raise StateError("Pong received by non-server")
     
@@ -296,741 +427,864 @@ class state:
     # Jupes
     #
     
+    @property
     def jupes(self):
-        """ Returns a list of global jupes
-            The list of tuples (mask, description, expires, active, last modified time) """
-        self._cleanupJupes()
+        """
+        Returns a list of global jupes
+        """
+        
+        self._cleanup_jupes()
         rj = []
         for jupe in self._jupes:
             if not self._jupes[jupe][4]:
-                rj.append((jupe, self._jupes[jupe][0], self._jupes[jupe][1], self._jupes[jupe][2], self._jupes[jupe][3]))
+                rj.append(
+                    (jupe, self._jupes[jupe][0], self._jupes[jupe][1],
+                     self._jupes[jupe][2], self._jupes[jupe][3])
+                )
         return rj
     
-    def _deactivateJupe(self, jupe):
-        self._jupes[jupe] = (self._jupes[jupe][0], self._jupes[jupe][1], False, self._jupes[jupe][3], self._jupes[jupe][4])
+    def _deactivate_jupe(self, jupe):
+        """
+        Deactivate a jupe
+        """
+        self._jupes[jupe] = (self._jupes[jupe][0], self._jupes[jupe][1], False,
+                             self._jupes[jupe][3], self._jupes[jupe][4])
     
-    def _cleanupJupes(self):
+    def _cleanup_jupes(self):
+        """
+        Deactivate any jupes which have passed their expiry date
+        """
         for jupe in self._jupes.copy():
-            if self._jupes[jupe][1] < self.ts():
-                self._deactivateJupe(jupe)
+            if self._jupes[jupe][1] < self.ts:
+                self._deactivate_jupe(jupe)
     
-    def isJuped(self, server):
-        self._cleanupJupes()
+    def is_juped(self, server):
+        """
+        Check whether or not a server is juped
+        """
+        self._cleanup_jupes()
         if server in self._jupes:
             return self._jupes[server][2]
         else:
             return False
     
-    def addJupe(self, origin, server, target, expire, ts, reason):
-        if target == None or target == self.getServerID():
-            self._jupes[server] = (reason, expire, True, ts, target == self.getServerID())
-        self._callback(self.CALLBACK_JUPEADD, (origin, server, target, expire, reason))
+    def add_jupe(self, origin, server, target, expire, ts, reason):
+        """
+        Add a Jupe
+        """
+        if target == None or target == self.server_id:
+            self._jupes[server] = (
+                reason, expire, True, ts,target == self.server_id
+            )
+        self._callback(self.CALLBACK_JUPEADD,
+                       origin, server, target, expire, reason)
     
-    def removeJupe(self, origin, server, target, ts):
-        if target == None or target == self.getServerID():
-            self.lock.acquire()
-            try:
-                if server in self._jupes:
-                    self._deactivateJupe(server)
-            finally:
-                self.lock.release()
-        self._callback(self.CALLBACK_JUPEREMOVE, (origin, server, target))
+    def remove_jupe(self, origin, server, target, ts):
+        """
+        Remove a jupe
+        """
+        if target == None or target == self.server_id:
+            if server in self._jupes:
+                self._deactivate_jupe(server)
+        self._callback(self.CALLBACK_JUPEREMOVE, origin, server, target)
     
     #
     # User handling
     #
     
-    def userExists(self, numeric):
-        """ Check if the user is known to us """
+    def user_exists(self, numeric):
+        """
+        Check if the user is known to us
+        """
         return numeric in self.users
     
     def nick2numeric(self, nick):
+        """
+        Convert a nick into its relevant numeric
+        """
+        
         for user in self.users:
             if nick == self.users[user].nickname:
                 return user
+        
         for server in self.servers:
             if nick == self.servers[server].name:
                 return (server, None)
     
     def numeric2nick(self, numeric):
-        if self.userExists(numeric):
+        """
+        Get the human-readable nick from the numeric
+        """
+        
+        if self.user_exists(numeric):
             return self.users[numeric].nickname
-        elif self.serverExists(numeric[0]) and numeric[1] == None:
+        elif self.server_exists(numeric[0]) and numeric[1] == None:
             return self.servers[numeric[0]].name
     
-    def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
-        """ Change state to include a new user """
+    def new_user(self, origin, numeric, nickname, username, hostname, modes, ip,
+                 hops, ts, fullname):
+        """
+        Change state to include a new user
+        """
         # TODO: Do we have a name clash?
-        self.lock.acquire()
-        try:
-            if self.serverExists(origin[0]):
-                if origin[1] == None:
-                    if self.userExists(numeric):
-                        raise StateError("Numeric collision - attempting to create second user with numeric we already know")
-                    else:
-                        self.users[numeric] = user(numeric, nickname, username, hostname, modes, ip, hops, ts, fullname)
+        if self.server_exists(origin[0]):
+            if origin[1] == None:
+                if self.user_exists(numeric):
+                    raise StateError(
+                        "Numeric collision - attempting to create second user" \
+                        + "with numeric we already know"
+                    )
                 else:
-                    raise p10.parser.ProtocolError("Only servers can create users")
+                    self.users[numeric] = User(
+                        numeric, nickname, username, hostname, modes, ip, hops,
+                        ts, fullname
+                    )
             else:
-                raise StateError("A non-existant server tried to create a user")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_NEWUSER, (origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname))
+                raise ProtocolError("Only servers can create users")
+        else:
+            raise StateError("A non-existent server tried to create a user")
+        self._callback(self.CALLBACK_NEWUSER,
+                       origin, numeric, nickname, username, hostname, modes, ip,
+                       hops, ts, fullname)
     
-    def partAllChannels(self, numeric):
-        """ A user parts all channels """
+    def part_all_channels(self, numeric):
+        """
+        A user parts all channels
+        """
         # Shallow copy to allow us to modify during loop
-        self.lock.acquire()
-        try:
-            for channel in self.users[numeric].channels.copy():
-                self.channels[channel].part(numeric)
-                self.users[numeric].part(channel)
-                self._cleanupChannel(channel)
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELPARTALL, (numeric))
+        for channel in self.users[numeric].channels.copy():
+            self.channels[channel].part(numeric)
+            self.users[numeric].part(channel)
+            self._cleanup_channel(channel)
+        self._callback(self.CALLBACK_CHANNELPARTALL, numeric)
     
     def quit(self, numeric, reason, causedbysquit=False):
-        self.lock.acquire()
-        try:
-            if self.userExists(numeric):
-                for channel in self.users[numeric].channels:
-                    self.channels[channel].part(numeric)
-                    self._cleanupChannel(channel)
-                del self.users[numeric]
-            else:
-                raise StateError("Unknown user tried to quit")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_QUIT, (numeric, reason, causedbysquit))
+        """
+        A user quits the network
+        """
+        if self.user_exists(numeric):
+            for channel in self.users[numeric].channels:
+                self.channels[channel].part(numeric)
+                self._cleanup_channel(channel)
+            del self.users[numeric]
+        else:
+            raise StateError("Unknown user tried to quit")
+        self._callback(self.CALLBACK_QUIT, numeric, reason, causedbysquit)
     
     def kill(self, origin, target, path, reason):
-        if target[0] == self.getServerID():
+        """
+        A user is forcibly quit from the network
+        """
+        if target[0] == self.server_id:
             self.quit(target, "Killed (" + reason + ")")
         else:
-            self._callback(self.CALLBACK_KILL, (origin, target, [self.servers[self.getNextHop(origin)].name] + path, reason))
+            self._callback(
+                self.CALLBACK_KILL,
+                origin, target,
+                [self.servers[self.get_next_hop(origin)].name] + path,
+                reason
+            )
     
-    def changeNick(self, origin, numeric, newnick, newts):
+    def change_nick(self, origin, numeric, newnick, newts):
         """ Change the nickname of a user on the network """
-        # TODO: More stringent checks on new nickname, i.e., is it valid/already in use?
-        self.lock.acquire()
-        try:
-            if self.userExists(numeric):
-                self.users[numeric].nickname = newnick
-                self.users[numeric].ts = newts
-            else:
-                raise StateError('Nick change attempted for unknown user')
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANGENICK, (origin, numeric, newnick, newts))
+        # TODO: More stringent checks on new nickname, i.e., is it valid/already
+        # in use?
+        if self.user_exists(numeric):
+            self.users[numeric].nickname = newnick
+            self.users[numeric].ts = newts
+        else:
+            raise StateError('Nick change attempted for unknown user')
+        self._callback(self.CALLBACK_CHANGENICK,
+                       origin, numeric, newnick, newts)
     
-    def changeUserMode(self, numeric, modes):
-        self.lock.acquire()
-        try:
-            if self.userExists(numeric):
-                for mode in modes:
-                    self.users[numeric].changeMode(mode)
-            else:
-                raise StateError("Attempted to change mode on a user that does not exist")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_USERMODECHANGE, (numeric, modes))
+    def change_user_mode(self, numeric, modes):
+        """
+        Change the umodes for a user
+        """
+        if self.user_exists(numeric):
+            for mode in modes:
+                self.users[numeric].change_mode(mode)
+        else:
+            raise StateError(
+                "Attempted to change mode on a user that does not exist"
+            )
+        self._callback(self.CALLBACK_USERMODECHANGE, numeric, modes)
     
     def authenticate(self, origin, numeric, acname):
-        """ Authenticate a user """
-        self.lock.acquire()
-        try:
-            if origin[1] == None:
-                if self.serverExists(origin[0]):
-                    if self.userExists(numeric):
-                        self.users[numeric].auth(acname)
-                    else:
-                        raise StateError("Authentication state change received for unknown user")
+        """ Mark a user as authenticated """
+        if origin[1] == None:
+            if self.server_exists(origin[0]):
+                if self.user_exists(numeric):
+                    self.users[numeric].auth(acname)
                 else:
-                    raise StateError("Authentication from unknown server")
+                    raise StateError(
+                        "Authentication state change received for unknown user"
+                    )
             else:
-                raise p10.parser.ProtocolError("Only servers can change state")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_AUTHENTICATE, (origin, numeric, acname))
+                raise StateError("Authentication from unknown server")
+        else:
+            raise ProtocolError("Only servers can change state")
+        self._callback(self.CALLBACK_AUTHENTICATE, origin, numeric, acname)
     
-    def getAccountName(self, numeric):
-        """ Get the account name for a user. Blank if not authenticated. """
+    def get_account_name(self, numeric):
+        """
+        Get the account name for a user. Blank if not authenticated.
+        """
         return self.users[numeric].account
     
-    def setAway(self, numeric, reason):
+    def set_away(self, numeric, reason):
         """ Mark a user as being away. Reason must be non-empty """
-        self.lock.acquire()
-        try:
-            if reason == "":
-                raise StateError("Attempted to set an empty away reason")
-            if self.userExists(numeric):
-                self.users[numeric].away_reason = reason
-            else:
-                raise StateError("Attempted to mark a user as away who does not exist")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_AWAY, (numeric, reason))
+        if reason == "":
+            raise StateError("Attempted to set an empty away reason")
+        if self.user_exists(numeric):
+            self.users[numeric].away_reason = reason
+        else:
+            raise StateError(
+                "Attempted to mark a user as away who does not exist"
+            )
+        self._callback(self.CALLBACK_AWAY, numeric, reason)
     
-    def setBack(self, numeric):
-        """ Mark a user as no longer being away """
-        self.lock.acquire()
-        try:
-            if self.userExists(numeric):
-                self.users[numeric].away_reason = None
-            else:
-                raise StateError("Attempted to mark a user as not away who does not exist")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_BACK, (numeric))
+    def set_back(self, numeric):
+        """
+        Mark a user as no longer being away
+        """
+        
+        if self.user_exists(numeric):
+            self.users[numeric].away_reason = None
+        else:
+            raise StateError(
+                "Attempted to mark a user as not away who does not exist"
+            )
+        self._callback(self.CALLBACK_BACK, numeric)
     
-    def addSilence(self, numeric, mask):
-        self.lock.acquire()
-        try:
-            if self.userExists(numeric):
-                self.users[numeric].addSilence(mask)
-            else:
-                raise StateError("Silence added for a user that does not exist")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_SILENCEADD, (numeric, mask))
+    def add_silence(self, numeric, mask):
+        """
+        Add a mask to a particular user which silences messages from other users
+        which match that mask
+        """
+        if self.user_exists(numeric):
+            self.users[numeric].add_silence(mask)
+        else:
+            raise StateError("Silence added for a user that does not exist")
+        self._callback(self.CALLBACK_SILENCEADD, numeric, mask)
     
-    def removeSilence(self, numeric, mask):
-        self.lock.acquire()
-        try:
-            if self.userExists(numeric):
-                self.users[numeric].removeSilence(mask)
-            else:
-                raise StateError("Silence removed from a user that does not exist")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_SILENCEREMOVE, (numeric, mask))
+    def remove_silence(self, numeric, mask):
+        """
+        Remove a silence mask for a particular user
+        """
+        if self.user_exists(numeric):
+            self.users[numeric].remove_silence(mask)
+        else:
+            raise StateError("Silence removed from a user that does not exist")
+        self._callback(self.CALLBACK_SILENCEREMOVE, numeric, mask)
     
-    def requestWhois(self, origin, target, search):
-        if self.userExists(origin):
-            if self.serverExists(target[0]) and target[1] == None:
-                self._callback(self.CALLBACK_REQUESTWHOIS, (origin, target, search))
+    def request_whois(self, origin, target, search):
+        """
+        Request information about who is a user
+        """
+        if self.user_exists(origin):
+            if self.server_exists(target[0]) and target[1] == None:
+                self._callback(self.CALLBACK_REQUESTWHOIS,
+                               origin, target, search)
             else:
                 raise StateError("Whois requested from non-server")
         else:
-            raise StateError("Whois requested by non-existant user")
+            raise StateError("Whois requested by non-existent user")
     
     #
     # Channel handling
     #
     
-    def createChannel(self, origin, name, ts):
-        """ Create a channel. Returns false if the new channel is invalid (i.e., is newer than one already known about) """
-        # TODO: More stringent checks on whether or not this channel can be created (i.e., is badchan'd or juped)
+    def create_channel(self, origin, name, ts):
+        """
+        Create a channel. Returns false if the new channel is invalid (i.e., is
+        newer than one already known about)
+        """
+        # TODO: More stringent checks on whether or not this channel can be
+        # created (i.e., is badchan'd or juped)
         create_success = False
         callback = False
-        oldusers = []
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (origin[1] == None and self.serverExists(origin[0])):
-                # Channel already exists
-                if name in self.channels:
-                    # If our channel is older, disregard.
-                    # If they're both the same, add new user as op
-                    if self.channels[name].ts == ts:
-                        # If the origin is a server, we have no-one joining a channel
-                        if origin[1] != None:
-                            self.joinChannel(origin, origin, name, ["o"], ts)
-                        create_success = True
-                    # Their channel is older, overrides ours and merge users
-                    elif self.channels[name].ts > ts:
-                        self.channels[name].ts = ts
-                        self.clearChannelOps(origin, name)
-                        self.clearChannelVoices(origin, name)
-                        self.clearChannelBans(origin, name)
-                        for mode in self.channels[name].modes():
-                            self.changeChannelMode(origin, name, ("-" + mode[0], None))
-                        if origin[1] != None:
-                            self.joinChannel(origin, origin, name, ["o"], ts)
-                        create_success = True
-                else:
-                    self.channels[name] = channel(name, ts)
+        if self.user_exists(origin) \
+        or (origin[1] == None and self.server_exists(origin[0])):
+            # Channel already exists
+            if name in self.channels:
+                # If our channel is older, disregard.
+                # If they're both the same, add new user as op
+                if self.channels[name].ts == ts:
+                    # If the origin is a server, we have no-one joining a
+                    # channel
                     if origin[1] != None:
-                        self.channels[name].join(origin, ["o"])
-                        self.users[origin].join(name)
-                        callback = True
+                        self.join_channel(origin, origin, name, ["o"], ts)
+                    create_success = True
+                # Their channel is older, overrides ours and merge users
+                elif self.channels[name].ts > ts:
+                    self.channels[name].ts = ts
+                    self.clear_channel_ops(origin, name)
+                    self.clear_channel_voices(origin, name)
+                    self.clear_channel_bans(origin, name)
+                    for mode in self.channels[name].modes:
+                        self.change_channel_mode(
+                            origin, name, ("-" + mode[0], None)
+                        )
+                    if origin[1] != None:
+                        self.join_channel(origin, origin, name, ["o"], ts)
                     create_success = True
             else:
-                raise StateError("Unknown entity attempted to create a channel")
-        finally:
-            self.lock.release()
+                self.channels[name] = Channel(name, ts)
+                if origin[1] != None:
+                    self.channels[name].join(origin, ["o"])
+                    self.users[origin].join(name)
+                    callback = True
+                create_success = True
+        else:
+            raise StateError("Unknown entity attempted to create a channel")
         if callback:
-            self._callback(self.CALLBACK_CHANNELCREATE, (origin, name, ts))
+            self._callback(self.CALLBACK_CHANNELCREATE, origin, name, ts)
         return create_success
     
-    def channelExists(self, name):
-        """ Returns if a channel exists or not """
+    def channel_exists(self, name):
+        """
+        Returns if a channel exists or not
+        """
         return name in self.channels
     
-    def requestChannelUsers(self, origin, target, channels):
-        """ Callback for a request for a list of users on a channel (/names) """
-        if self.userExists(origin):
+    def request_channel_users(self, origin, target, channels):
+        """
+        Callback for a request for a list of users on a channel (/names)
+        """
+        if self.user_exists(origin):
             if target[1] == None:
                 goodchannels = []
                 for channel in channels:
-                    # The channel must exist, and the user must be allowed to view those names
-                    # so the user can be an oper, or on the channel, or the channel is not private or secret
-                    if self.channelExists(channel) and (self.channels[channel].ison(origin) or
-                                                        self.users[origin].hasMode("o") or
-                                                        (not self.channels[channel].hasMode("p") and not self.channels[channel].hasMode("s"))):
+                    # The channel must exist, and the user must be allowed to
+                    # view those names so the user can be an oper, or on the
+                    # channel, or the channel is not private or secret
+                    if self.channel_exists(channel) \
+                    and (self.channels[channel].ison(origin) \
+                        or self.users[origin].has_mode("o") \
+                        or (not self.channels[channel].has_mode("p") \
+                            and not self.channels[channel].has_mode("s"))):
                         goodchannels.append(channel)
                 if len(goodchannels) > 0:
-                    self._callback(self.CALLBACK_REQUESTNAMES, (origin, target, goodchannels))
+                    self._callback(self.CALLBACK_REQUESTNAMES,
+                                   origin, target, goodchannels)
             else:
-                raise p10.parser.ProtocolError("Names information can only be requested from servers")
+                raise ProtocolError(
+                    "Names information can only be requested from servers"
+                )
         else:
-            raise StateError("Received a request for names info from a non-existant user")
+            raise StateError(
+                "Received a request for names info from a non-existent user"
+            )
     
-    def _cleanupChannel(self, name):
-        self.lock.acquire()
-        try:
-            if len(self.channels[name].users()) == 0 and len(self.channels[name].zombies) == 0:
-                del self.channels[name]
-                for user in self.users:
-                    # Remove any invites that a user may have to this channel
-                    if self.users[user].isInvited(name):
-                        self.users[user].invites.remove(name)
-        finally:
-            self.lock.release()
+    def _cleanup_channel(self, name):
+        """
+        Remove empty channels
+        """
+        if len(self.channels[name].users) == 0 \
+        and len(self.channels[name].zombies) == 0:
+            del self.channels[name]
+            for user in self.users:
+                # Remove any invites that a user may have to this channel
+                if self.users[user].is_invited(name):
+                    self.users[user].invites.remove(name)
     
-    def destroyChannel(self, origin, channel, ts):
+    def destroy_channel(self, origin, channel, ts):
+        """
+        Destroy a channel
+        """
         callback = True
-        self.lock.acquire()
-        try:
-            if self.channelExists(channel):
-                if len(self.channels[channel].users()) == 0:
-                    del self.channels[channel]
-                else:
-                    callback = False
-        finally:
-            self.lock.release()
+        if self.channel_exists(channel):
+            if len(self.channels[channel].users) == 0:
+                del self.channels[channel]
+            else:
+                callback = False
         if callback:
-            self._callback(self.CALLBACK_CHANNELDESTROY, (origin, channel, ts))
+            self._callback(self.CALLBACK_CHANNELDESTROY, origin, channel, ts)
     
-    def changeChannelMode(self, origin, name, modes):
-        """ Change the modes on a channel. Modes are lists of tuples of the desired change and an optional argument, or None """
-        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(name):
-                    for mode in modes:
-                        self.channels[name].changeMode(mode)
-                else:
-                    raise StateError("Attempted to change the modes on a channel that does not exist")
+    def change_channel_mode(self, origin, name, modes):
+        """
+        Change the modes on a channel. Modes are lists of tuples of the desired
+        change and an optional argument, or None
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(name):
+                for mode in modes:
+                    self.channels[name].change_mode(mode)
             else:
-                raise StateError("An invalid entity attempted to change a channel mode")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELMODECHANGE, (origin, name, modes))
+                raise StateError(
+                    "Attempted to change the modes on a channel that does not" \
+                    + " exist"
+                )
+        else:
+            raise StateError(
+                "An invalid entity attempted to change a channel mode"
+            )
+        self._callback(self.CALLBACK_CHANNELMODECHANGE, origin, name, modes)
     
-    def addChannelBan(self, origin, name, mask):
-        """ Adds a ban to the channel. """
-        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(name):
-                    self.channels[name].addBan(mask)
-                else:
-                    raise StateError("Attempted to add a ban to a channel that does not exist")
+    def add_channel_ban(self, origin, name, mask):
+        """
+        Adds a ban to the channel.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(name):
+                self.channels[name].add_ban(mask)
             else:
-                raise StateError("An invalid entity attempted to add a channel ban")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELBANADD, (origin, name, mask))
+                raise StateError(
+                    "Attempted to add a ban to a channel that does not exist"
+                )
+        else:
+            raise StateError("An invalid entity attempted to add a channel ban")
+        self._callback(self.CALLBACK_CHANNELBANADD, origin, name, mask)
     
-    def removeChannelBan(self, origin, name, ban):
-        """ Removes a ban from the channel. """
-        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(name):
-                    self.channels[name].removeBan(ban)
-                else:
-                    raise StateError("Attempted to remove a ban from a channel that does not exist")
+    def remove_channel_ban(self, origin, name, ban):
+        """
+        Removes a ban from the channel.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(name):
+                self.channels[name].remove_ban(ban)
             else:
-                raise StateError("An invalid entity attempted to remove a channel ban")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELBANREMOVE, (origin, name, ban))
+                raise StateError(
+                    "Attempted to remove a ban from a channel that does not" \
+                    + " exist"
+                )
+        else:
+            raise StateError(
+                "An invalid entity attempted to remove a channel ban"
+            )
+        self._callback(self.CALLBACK_CHANNELBANREMOVE, origin, name, ban)
     
-    def clearChannelBans(self, origin, name):
-        """ Clears all bans from the channel. """
-        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(name):
-                    self.channels[name].clearBans()
-                else:
-                    raise StateError("Attempted to clear bans from a channel that does not exist")
+    def clear_channel_bans(self, origin, name):
+        """
+        Clears all bans from the channel.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(name):
+                self.channels[name].clear_bans()
             else:
-                raise StateError("An invalid entity attempted to clear channel bans")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELBANCLEAR, (origin, name))
+                raise StateError(
+                    "Attempted to clear bans from a channel that does not exist"
+                )
+        else:
+            raise StateError(
+                "An invalid entity attempted to clear channel bans"
+            )
+        self._callback(self.CALLBACK_CHANNELBANCLEAR, origin, name)
     
-    def changeTopic(self, origin, channel, topic, topic_ts, channel_ts):
-        self.lock.acquire()
+    def change_topic(self, origin, channel, topic, topic_ts, channel_ts):
+        """
+        Change the topic for a channel
+        """
         callback = False
-        try:
-            if self.userExists(origin) or self.serverExists(origin[0]):
-                if self.channelExists(channel):
-                    # Disregard if new topic_ts is older than old one
-                    if topic_ts >= self.channels[channel].topic_ts and channel_ts <= self.channels[channel].ts:
-                        self.channels[channel].changeTopic(topic, topic_ts, self.numeric2nick(origin))
-                        callback = True
-                else:
-                    raise StateError("Topic change attempted on a channel that does not exist")
+        if self.user_exists(origin) or self.server_exists(origin[0]):
+            if self.channel_exists(channel):
+                # Disregard if new topic_ts is older than old one
+                if topic_ts >= self.channels[channel].topic_ts \
+                and channel_ts <= self.channels[channel].ts:
+                    self.channels[channel].change_topic(
+                        topic, topic_ts, self.numeric2nick(origin)
+                    )
+                    callback = True
             else:
-                raise StateError("Invalid origin attempted to change topic")
-        finally:
-            self.lock.release()
+                raise StateError(
+                    "Topic change attempted on a channel that does not exist"
+                )
+        else:
+            raise StateError("Invalid origin attempted to change topic")
         if callback:
-            self._callback(self.CALLBACK_CHANNELTOPIC, (origin, channel, topic, topic_ts, channel_ts))
+            self._callback(self.CALLBACK_CHANNELTOPIC,
+                           origin, channel, topic, topic_ts, channel_ts)
     
     #
     # User channel events
     #
     
-    def joinChannel(self, origin, numeric, name, modes, ts=1270080000):
-        """ A user joins a channel, with optional modes already set. If the channel does not exist, it is created. """
-        # TODO: More stringent checks on whether or not this user is allowed to join this channel
-        self.lock.acquire()
+    def join_channel(self, origin, numeric, name, modes, ts=1270080000):
+        """
+        A user joins a channel, with optional modes already set. If the channel
+        does not exist, it is created.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # join this channel
         callback = False
-        try:
-            if self.userExists(numeric):
-                if self.channelExists(name):
-                    self.channels[name].join(numeric, modes)
-                    self.users[numeric].join(name)
-                    callback = True
-                else:
-                    # Channel doesn't exist, so it gets created
-                    self.createChannel(numeric, name, ts)
-                    # But, modes don't get propagated by create, it always assumes o
-                    # So bounce deop if needed
-                    if "o" not in modes:
-                        self.deop(origin, name, numeric)
-                    # And send voice if needed
-                    if "v" in modes:
-                        self.voice(origin, name, numeric)
+        if self.user_exists(numeric):
+            if self.channel_exists(name):
+                self.channels[name].join(numeric, modes)
+                self.users[numeric].join(name)
+                callback = True
             else:
-                raise StateError("Unknown user (" + str(numeric) + ") attempted to join a channel")
-        finally:
-            self.lock.release()
-        if callback:
-            self._callback(self.CALLBACK_CHANNELJOIN, (origin, numeric, name, modes, ts))
-            if "o" in modes:
-                self._callback(self.CALLBACK_CHANNELOP, (origin, name, numeric))
-            if "v" in modes:
-                self._callback(self.CALLBACK_CHANNELVOICE, (origin, name, numeric))
-    
-    def partChannel(self, numeric, name, reason):
-        """ A user parts a channel """
-        self.lock.acquire()
-        callbackZombie = True
-        try:
-            if self.userExists(numeric):
-                if self.channelExists(name):
-                    if self.channels[name].ison(numeric):
-                        if numeric in self.channels[name].users():
-                            callbackZombie = False
-                        self.channels[name].part(numeric)
-                        self.users[numeric].part(name)
-                        self._cleanupChannel(name)
-                    else:
-                        raise StateError("User that was not on a channel attempted to leave it")
-                else:
-                    raise StateError("User tried to leave a channel that does not exist")
-            else:
-                raise StateError("Unknown user attempted to leave a channel")
-        finally:
-            self.lock.release()
-        if callbackZombie:
-            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (numeric, name))
+                # Channel doesn't exist, so it gets created
+                self.create_channel(numeric, name, ts)
+                # But, modes don't get propagated by create, it always assumes o
+                # So bounce deop if needed
+                if "o" not in modes:
+                    self.deop(origin, name, numeric)
+                # And send voice if needed
+                if "v" in modes:
+                    self.voice(origin, name, numeric)
         else:
-            self._callback(self.CALLBACK_CHANNELPART, (numeric, name, reason))
+            raise StateError(
+                "Unknown user (%s) attempted to join a channel" % str(numeric)
+            )
+        if callback:
+            self._callback(self.CALLBACK_CHANNELJOIN,
+                           origin, numeric, name, modes, ts)
+            if "o" in modes:
+                self._callback(self.CALLBACK_CHANNELOP, origin, name, numeric)
+            if "v" in modes:
+                self._callback(self.CALLBACK_CHANNELVOICE,
+                               origin, name, numeric)
+    
+    def part_channel(self, numeric, name, reason):
+        """
+        A user parts a channel
+        """
+        callback_zombie = True
+        if self.user_exists(numeric):
+            if self.channel_exists(name):
+                if self.channels[name].ison(numeric):
+                    if numeric in self.channels[name].users:
+                        callback_zombie = False
+                    self.channels[name].part(numeric)
+                    self.users[numeric].part(name)
+                    self._cleanup_channel(name)
+                else:
+                    raise StateError(
+                        "User that was not on a channel attempted to leave it"
+                    )
+            else:
+                raise StateError(
+                    "User tried to leave a channel that does not exist"
+                )
+        else:
+            raise StateError("Unknown user attempted to leave a channel")
+        if callback_zombie:
+            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, numeric, name)
+        else:
+            self._callback(self.CALLBACK_CHANNELPART, numeric, name, reason)
     
     def kick(self, origin, channel, target, reason):
-        self.lock.acquire()
         bouncepart = False
-        try:
-            # Kick handling is weird. We zombify the user until we receive an upstream part
-            if self.channelExists(channel):
-                if self.channels[channel].ison(target):
-                    self.channels[channel].kick(target)
-                    if target[0] == self.getServerID():
-                        bouncepart = True
-                        self.channels[channel].part(target)
-                        self.users[target].part(channel)
-                        self._cleanupChannel(channel)
-                else:
-                    raise StateError("Kick received for a user that is not on the channel")
+        # Kick handling is weird. We zombify the user until we receive an
+        # upstream part
+        if self.channel_exists(channel):
+            if self.channels[channel].ison(target):
+                self.channels[channel].kick(target)
+                if target[0] == self.server_id:
+                    bouncepart = True
+                    self.channels[channel].part(target)
+                    self.users[target].part(channel)
+                    self._cleanup_channel(channel)
             else:
-                raise StateError("Kick received for a user on an unknown channel")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELKICK, (origin, channel, target, reason))
+                raise StateError(
+                    "Kick received for a user that is not on the channel"
+                )
+        else:
+            raise StateError("Kick received for a user on an unknown channel")
+        self._callback(self.CALLBACK_CHANNELKICK,
+                       origin, channel, target, reason)
         if bouncepart:
-            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, (target, channel))
+            self._callback(self.CALLBACK_CHANNELPARTZOMBIE, target, channel)
     
     def op(self, origin, channel, user):
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(channel):
-                    if self.channels[channel].ison(user):
-                        self.channels[channel].op(user)
-                    else:
-                        raise StateError("Attempted to op a user that was not on the channel")
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(channel):
+                if self.channels[channel].ison(user):
+                    self.channels[channel].op(user)
                 else:
-                    raise StateError("Attempted to op a user on a channel that does not exist")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELOP, (origin, channel, user))
+                    raise StateError(
+                        "Attempted to op a user that was not on the channel"
+                    )
+            else:
+                raise StateError(
+                    "Attempted to op a user on a channel that does not exist"
+                )
+        self._callback(self.CALLBACK_CHANNELOP, origin, channel, user)
     
     def deop(self, origin, channel, user):
-        """ Deops a user from the channel. """
-        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(channel):
-                    if self.channels[channel].isop(user):
-                        self.channels[channel].deop(user)
-                    else:
-                        raise StateError('Attempted to deop a user that was not op on the channel')
+        """
+        Deops a user from the channel.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(channel):
+                if self.channels[channel].isop(user):
+                    self.channels[channel].deop(user)
                 else:
-                    raise StateError('Attempted to deop from a channel that does not exist')
+                    raise StateError(
+                       'Attempted to deop a user that was not op on the channel'
+                    )
             else:
-                raise StateError("An invalid entity attempted to deop a user")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELDEOP, (origin, channel, user))
+                raise StateError(
+                    'Attempted to deop from a channel that does not exist'
+                )
+        else:
+            raise StateError("An invalid entity attempted to deop a user")
+        self._callback(self.CALLBACK_CHANNELDEOP, origin, channel, user)
     
-    def clearChannelOps(self, origin, name):
-        """ Clears all ops from the channel. """
-        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(name):
-                    self.channels[name].clearOps()
-                else:
-                    raise StateError("Attempted to clear ops from a channel that does not exist")
+    def clear_channel_ops(self, origin, name):
+        """
+        Clears all ops from the channel.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(name):
+                self.channels[name].clear_ops()
             else:
-                raise StateError("An invalid entity attempted to clear channel ops")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELCLEAROPS, (origin, name))
+                raise StateError(
+                    "Attempted to clear ops from a channel that does not exist"
+                )
+        else:
+            raise StateError("An invalid entity attempted to clear channel ops")
+        self._callback(self.CALLBACK_CHANNELCLEAROPS, origin, name)
     
     def voice(self, origin, channel, user):
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(channel):
-                    if self.channels[channel].ison(user):
-                        self.channels[channel].voice(user)
-                    else:
-                        raise StateError("Attempted to voice a user that was not on the channel")
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(channel):
+                if self.channels[channel].ison(user):
+                    self.channels[channel].voice(user)
                 else:
-                    raise StateError("Attempted to voice a user on a channel that does not exist")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELVOICE, (origin, channel, user))
+                    raise StateError(
+                        "Attempted to voice a user that was not on the channel"
+                    )
+            else:
+                raise StateError(
+                    "Attempted to voice a user on a channel that does not exist"
+                )
+        self._callback(self.CALLBACK_CHANNELVOICE, origin, channel, user)
     
     def devoice(self, origin, channel, user):
-        """ Devoices a user from the channel. """
-        self.lock.acquire()
-        try:
-            # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(channel):
-                    if self.channels[channel].isvoice(user):
-                        self.channels[channel].devoice(user)
-                    else:
-                        raise StateError('Attempted to devoice a user that was not voice on the channel')
+        """
+        Devoices a user from the channel.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(channel):
+                if self.channels[channel].isvoice(user):
+                    self.channels[channel].devoice(user)
                 else:
-                    raise StateError('Attempted to devoice from a channel that does not exist')
+                    raise StateError(
+                        'Attempted to devoice a user that was not voice ' \
+                        + 'on the channel'
+                    )
             else:
-                raise StateError("An invalid entity attempted to devoice a user")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELDEVOICE, (origin, channel, user))
+                raise StateError(
+                    'Attempted to devoice from a channel that does not exist'
+                )
+        else:
+            raise StateError("An invalid entity attempted to devoice a user")
+        self._callback(self.CALLBACK_CHANNELDEVOICE, origin, channel, user)
     
-    def clearChannelVoices(self, origin, name):
-        """ Clears all voices from the channel. """
-        # TODO: More stringent checks on whether or not this user is allowed to make this mode change
-        self.lock.acquire()
-        try:
-            if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-                if self.channelExists(name):
-                    self.channels[name].clearVoices()
-                else:
-                    raise StateError("Attempted to clear voices from a channel that does not exist")
+    def clear_channel_voices(self, origin, name):
+        """
+        Clears all voices from the channel.
+        """
+        # TODO: More stringent checks on whether or not this user is allowed to
+        # make this mode change
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            if self.channel_exists(name):
+                self.channels[name].clear_voices()
             else:
-                raise StateError("An invalid entity attempted to clear channel voices")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_CHANNELCLEARVOICES, (origin, name))
+                raise StateError(
+                    "Attempted to clear voices from a channel that does " \
+                    + "not exist"
+                )
+        else:
+            raise StateError(
+                "An invalid entity attempted to clear channel voices"
+            )
+        self._callback(self.CALLBACK_CHANNELCLEARVOICES, origin, name)
     
     def invite(self, origin, target, channel):
-        """ Origin invites Target to Channel """
+        """
+        Origin invites Target to Channel
+        """
         # TODO: Check origin can actually send invites
-        self.lock.acquire()
-        try:
-            if self.userExists(target):
-                if self.channelExists(channel):
-                    self.users[target].invite(channel)
-                else:
-                    raise StateError("Attempted to invite a user into a non-existant channel")
+        if self.user_exists(target):
+            if self.channel_exists(channel):
+                self.users[target].invite(channel)
             else:
-                raise StateError("Attempted to invite a non-existant user to a channel")
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_INVITE, (origin, target, channel))
+                raise StateError(
+                    "Attempted to invite a user into a non-existent channel"
+                )
+        else:
+            raise StateError(
+                "Attempted to invite a non-existent user to a channel"
+            )
+        self._callback(self.CALLBACK_INVITE, origin, target, channel)
     
     #
     # Messages
     #
     
     def oobmsg(self, origin, target, type, args):
+        """
+        An out-of-band message
+        """
         self._callback(self.CALLBACK_OOBMSG, (origin, target, type, args))
     
     def privmsg(self, origin, target, message):
-        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-            self._callback(self.CALLBACK_PRIVMSG, (origin, target, message))
+        """
+        A 'private' message (destination can be a channel, which means it's
+        shared with an entire channel)
+        """
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_PRIVMSG, origin, target, message)
         else:
-            raise StateError("Privmsg received from non-existant entity")
+            raise StateError("Privmsg received from non-existent entity")
     
     def notice(self, origin, target, message):
-        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-            self._callback(self.CALLBACK_NOTICE, (origin, target, message))
+        """
+        A notice message (destination can be a channel, which means it's
+        shared with an entire channel)
+        """
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_NOTICE, origin, target, message)
         else:
-            raise StateError("Notice received from non-existant entity")
+            raise StateError("Notice received from non-existent entity")
     
     def wallops(self, origin, message):
-        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-            self._callback(self.CALLBACK_WALLOPS, (origin, message))
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLOPS, origin, message)
         else:
-            raise StateError("Wallops received from non-existant entity")
+            raise StateError("Wallops received from non-existent entity")
     
     def wallusers(self, origin, message):
-        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-            self._callback(self.CALLBACK_WALLUSERS, (origin, message))
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLUSERS, origin, message)
         else:
-            raise StateError("Wallusers received from non-existant entity")
+            raise StateError("Wallusers received from non-existent entity")
     
     def wallvoices(self, origin, channel, message):
-        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-            self._callback(self.CALLBACK_WALLVOICES, (origin, channel, message))
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLVOICES, origin, channel, message)
         else:
-            raise StateError("Wallvoices received from non-existant entity")
+            raise StateError("Wallvoices received from non-existent entity")
     
     def wallchops(self, origin, channel, message):
-        if self.userExists(origin) or (self.serverExists(origin[0]) and origin[1] == None):
-            self._callback(self.CALLBACK_WALLCHOPS, (origin, channel, message))
+        if self.user_exists(origin) \
+        or (self.server_exists(origin[0]) and origin[1] == None):
+            self._callback(self.CALLBACK_WALLCHOPS, origin, channel, message)
         else:
-            raise StateError("Wallchops received from non-existant entity")
+            raise StateError("Wallchops received from non-existent entity")
     
     #
     # G-lines
     #
     
     def glines(self):
-        """ Returns a list of global g-lines
-            The list of tuples (mask, description, expires, active, last modified time) """
-        self._cleanupGlines()
+        """
+        Returns a list of global g-lines
+        [(mask, description, expires, active, last modified time)]
+        """
+        
+        self._cleanup_glines()
         rg = []
         for gline in self._glines:
             if not self._glines[gline][4]:
-                rg.append((gline, self._glines[gline][0], self._glines[gline][1], self._glines[gline][2], self._glines[gline][3]))
+                rg.append(
+                    (gline, self._glines[gline][0], self._glines[gline][1],
+                     self._glines[gline][2], self._glines[gline][3])
+                )
         return rg
     
-    def _cleanupGlines(self):
-        """ Remove expired g-lines """
+    def _cleanup_glines(self):
+        """
+        Remove expired g-lines
+        """
         # Make shallow copy of dictionary so we can modify it during iteration
-        self.lock.acquire()
-        try:
-            for gline in self._glines.copy():
-                # Remove expired g-lines
-                if self._glines[gline][1] < self.ts():
-                    self._deactivateGline(gline)
-        finally:
-            self.lock.release()
+        for gline in self._glines.copy():
+            # Remove expired g-lines
+            if self._glines[gline][1] < self.ts:
+                self._deactivate_gline(gline)
     
-    def _deactivateGline(self, gline):
-        """ Deactivate a g-line """
-        self._glines[gline] = (self._glines[gline][0], self._glines[gline][1], False, self._glines[gline][3], self._glines[gline][4])
+    def _deactivate_gline(self, gline):
+        """
+        Deactivate a g-line
+        """
+        self._glines[gline] = (
+            self._glines[gline][0], self._glines[gline][1], False,
+            self._glines[gline][3], self._glines[gline][4]
+        )
     
-    def addGline(self, origin, mask, target, expires, ts, description):
-        """ Add a g-line """
+    def add_gline(self, origin, mask, target, expires, ts, description):
+        """
+        Add a g-line
+        """
         # TODO: Check if origin can actually set g-lines
-        if target == None or target == self.getServerID():
-            self._glines[mask] = (description, expires, True, ts, target == self.getServerID())
-        self._callback(self.CALLBACK_GLINEADD, (origin, mask, target, expires, description))
+        if target == None or target == self.server_id:
+            self._glines[mask] = (
+                description, expires, True, ts, target == self.server_id
+            )
+        self._callback(self.CALLBACK_GLINEADD,
+                       origin, mask, target, expires,description)
     
-    def isGlined(self, host):
-        """ Check if someone is g-lined """
-        self.lock.acquire()
-        try:
-            self._cleanupGlines()
-            for mask in self._glines:
-                if fnmatch.fnmatch(host, mask):
-                    return self._glines[mask][2]
-                else:
-                    return False
-        finally:
-            self.lock.release()
+    def is_glined(self, host):
+        """
+        Check if someone is g-lined
+        """
+        self._cleanup_glines()
+        for mask in self._glines:
+            if fnmatch.fnmatch(host, mask):
+                return self._glines[mask][2]
+            else:
+                return False
     
-    def removeGline(self, origin, mask, target, ts):
-        """ Remove a g-line """
+    def remove_gline(self, origin, mask, target, ts):
+        """
+        Remove a g-line
+        """
         # TODO: Check if origin can actually remove g-lines
-        self.lock.acquire()
-        try:
-            if target == None or target == self.getServerID():
-                # Make shallow copy of dictionary so we can modify it during iteration
-                for gline in self._glines.copy():
-                    # Remove any g-lines that match that mask
-                    if fnmatch.fnmatch(gline, mask):
-                        self._deactivateGline(gline)
-        finally:
-            self.lock.release()
-        self._callback(self.CALLBACK_GLINEREMOVE, (origin, mask, target))
+        if target == None or target == self.server_id:
+            for gline in self._glines.copy():
+                # Remove any g-lines that match that mask
+                if fnmatch.fnmatch(gline, mask):
+                    self._deactivate_gline(gline)
+        self._callback(self.CALLBACK_GLINEREMOVE, origin, mask, target)
 
-class user:
-    """ Represents a user internally """
+
+class User():
+    """
+    Represents a user internally
+    """
     
-    numeric = None
-    nickname = ""
-    username = ""
-    hostname = ""
-    _modes = dict()
-    channels = set()
-    ip = 0
-    fullname = ""
-    account = ""
-    hops = 0
-    ts = 0
-    away_reason = None
-    invites = set()
-    silences = set()
-    
-    def __init__(self, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
+    def __init__(self, numeric, nickname, username, hostname, modes, ip, hops,
+                 ts, fullname):
         self.numeric = numeric
         self.nickname = nickname
         self.username = username
         self.hostname = hostname
+        self.account = ''
         self._modes = dict()
         for mode in modes:
-            self.changeMode(mode)
+            self.change_mode(mode)
         self.ip = ip
         self.hops = hops
         self.ts = ts
@@ -1041,15 +1295,22 @@ class user:
         self.silences = set()
     
     def auth(self, account):
-        """ Mark this user as authenticated """
+        """
+        Mark this user as authenticated
+        """
         if self.account == "":
             self.account = account
             self._modes["r"] = account
         else:
-            raise StateError("Authentication state change received for someone who is already authenticated")
+            raise StateError(
+                "Authentication state change received for someone who is " \
+                + "already authenticated"
+            )
     
-    def changeMode(self, mode):
-        """ Change a single mode associated with this user """
+    def change_mode(self, mode):
+        """
+        Change a single mode associated with this user
+        """
         if mode[0][0] == "+" and mode[1] == None:
             self._modes[mode[0][1]] = True
         elif mode[0][0] == "+" and mode[1] != None:
@@ -1060,15 +1321,20 @@ class user:
         else:
             self._modes[mode[0][1]] = False
     
-    def hasMode(self, mode):
-        """ Return whether a user has a mode """
+    def has_mode(self, mode):
+        """
+        Return whether a user has a mode
+        """
         if mode in self._modes:
             return self._modes[mode]
         else:
             return False
     
+    @property
     def modes(self):
-        """ Return the modes this user has """
+        """
+        Return the modes this user has
+        """
         ml = []
         for mode in self._modes:
             if self._modes[mode] == True:
@@ -1079,8 +1345,10 @@ class user:
                 ml.append(("+" + mode, str(self._modes[mode])))
         return ml
     
-    def isAway(self):
-        """ Return whether a user is away or not """
+    def is_away(self):
+        """
+        Return whether a user is away or not
+        """
         if self.away_reason == None:
             return False
         else:
@@ -1088,7 +1356,7 @@ class user:
     
     def join(self, channel):
         self.channels.add(channel)
-        if self.isInvited(channel):
+        if self.is_invited(channel):
             self.invites.remove(channel)
     
     def part(self, channel):
@@ -1097,34 +1365,25 @@ class user:
     def invite(self, channel):
         self.invites.add(channel)
     
-    def isInvited(self, channel):
+    def is_invited(self, channel):
         return channel in self.invites
     
-    def addSilence(self, mask):
+    def add_silence(self, mask):
         self.silences.add(mask)
     
-    def removeSilence(self, mask):
+    def remove_silence(self, mask):
         self.silences = self.silences - set([mask])
     
-    def isSilenced(self, mask):
+    def is_silenced(self, mask):
         """ Returns whether or not this user has silenced this host """
         for silence in self.silences:
             if fnmatch.fnmatch(mask, silence):
                 return True
         return False
 
-class channel:
+
+class Channel():
     """ Represents a channel internally """
-    
-    name = ""
-    ts = 0
-    _users = dict()
-    zombies = set()
-    _modes = dict()
-    bans = []
-    topic = ""
-    topic_changer = ""
-    topic_ts = 0
     
     def __init__(self, name, ts):
         self.name = name
@@ -1150,8 +1409,10 @@ class channel:
     def kick(self, numeric):
         self.zombies.add(numeric)
     
-    def changeMode(self, mode):
-        """ Change a single mode associated with this channel """
+    def change_mode(self, mode):
+        """
+        Change a single mode associated with this channel
+        """
         if mode[0][0] == "+" and mode[1] == None:
             self._modes[mode[0][1]] = True
         elif mode[0][0] == "+" and mode[1] != None:
@@ -1159,13 +1420,17 @@ class channel:
         else:
             self._modes[mode[0][1]] = False
     
-    def hasMode(self, mode):
-        """ Return whether a channel has a mode (and if it's something with an option, what it is) """
+    def has_mode(self, mode):
+        """
+        Return whether a channel has a mode (and if it's something with an
+        option, what it is)
+        """
         if mode in self._modes:
             return self._modes[mode]
         else:
             return False
     
+    @property
     def modes(self):
         ml = []
         for mode in self._modes:
@@ -1177,41 +1442,55 @@ class channel:
                 ml.append(("+" + mode, str(self._modes[mode])))
         return ml
     
-    def clearBans(self):
-        """ Clears bans from the channel """
+    def clear_bans(self):
+        """
+        Clears bans from the channel
+        """
         self.bans = []
     
-    def addBan(self, mask):
-        """ Adds a ban to the channel """
+    def add_ban(self, mask):
+        """
+        Adds a ban to the channel
+        """
         self.bans.append(mask)
     
-    def removeBan(self, mask):
-        """ Removes a ban from the channel """
+    def remove_ban(self, mask):
+        """
+        Removes a ban from the channel
+        """
         for ban in self.bans:
             if fnmatch.fnmatch(ban, mask):
                 self.bans.remove(ban)
     
     def ison(self, numeric):
-        """ Returns whether a not a user is on a channel """
+        """
+        Returns whether a not a user is on a channel
+        """
         return numeric in self._users
     
+    @property
     def users(self):
-        """ Return the list of users """
+        """
+        Return the list of users
+        """
         r = self._users.copy()
         for z in self.zombies:
             del r[z]
         return r
     
     def isop(self, numeric):
-        """ Check if a user is op on a channel """
+        """
+        Check if a user is op on a channel
+        """
         if self.ison(numeric):
             return "o" in self._users[numeric]
         else:
             return False
     
+    @property
     def ops(self):
         ret = set()
-        for user in self.users():
+        for user in self.users:
             if self.isop(user):
                 ret.add(user)
         return ret
@@ -1222,20 +1501,23 @@ class channel:
     def deop(self, numeric):
         self._users[numeric].remove("o")
     
-    def clearOps(self):
-        for op in self.ops():
+    def clear_ops(self):
+        for op in self.ops:
             self.deop(op)
     
     def isvoice(self, numeric):
-        """ Check if a user is voice on a channel """
+        """
+        Check if a user is voice on a channel
+        """
         if self.ison(numeric):
             return "v" in self._users[numeric]
         else:
             return False
     
+    @property
     def voices(self):
         ret = set()
-        for user in self.users():
+        for user in self.users:
             if self.isvoice(user):
                 ret.add(user)
         return ret
@@ -1246,30 +1528,23 @@ class channel:
     def devoice(self, numeric):
         self._users[numeric].remove("v")
     
-    def clearVoices(self):
-        for voice in self.voices():
+    def clear_voices(self):
+        for voice in self.voices:
             self.devoice(voice)
     
-    def changeTopic(self, new_topic, ts, name):
+    def change_topic(self, new_topic, ts, name):
         self.topic = new_topic
         self.topic_ts = ts
         self.topic_changer = name
 
-class server:
-    """ Internally represent a server """
-    numeric = 0
-    origin = None
-    name = ""
-    maxclient = 0
-    boot_ts = 0
-    link_ts = 0
-    protocol = ""
-    hops = 0
-    flags = set()
-    description = ""
-    children = set()
+
+class Server():
+    """
+    Internally represent a server
+    """
     
-    def __init__(self, origin, numeric, name, maxclient, boot_ts, link_ts, protocol, hops, flags, description):
+    def __init__(self, origin, numeric, name, maxclient, boot_ts, link_ts,
+                 protocol, hops, flags, description):
         self.numeric = numeric
         self.origin = origin
         self.name = name
@@ -1282,9 +1557,13 @@ class server:
         self.description = description
         self.children = set()
     
-    def addChild(self, child):
+    def add_child(self, child):
         self.children.add(child)
 
+
 class StateError(Exception):
-    """ An exception raised if a state change would be impossible, generally suggesting we've gone out of sync """
+    """
+    An exception raised if a state change would be impossible, generally
+    suggesting we've gone out of sync
+    """
     pass

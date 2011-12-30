@@ -1,24 +1,24 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.admin
 
-class StateDouble:
+from wish.p10.commands.admin import AdminHandler
+
+class StateDouble():
     
-    insight = None
-    maxClientNumerics = dict({1: 262143})
+    max_client_numerics = {1: 262143}
     
     def __init__(self):
         self.insight = None
     
-    def requestAdminInfo(self, origin, target):
+    def request_admininfo(self, origin, target):
         self.insight = (origin, target)
 
 class AdminTest(unittest.TestCase):
     
-    def testCallbackCalled(self):
+    def test_callback_called(self):
         s = StateDouble()
-        a = p10.commands.admin.admin(s)
+        a = AdminHandler(s)
         a.handle((1,1), ["AB"])
         self.assertEquals(((1,1), (1, None)), s.insight)
     

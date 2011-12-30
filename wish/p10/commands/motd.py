@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
-import p10.base64
-import genericcommand
+from wish.p10.base64 import parse_numeric
+from wish.p10.commands.basecommand import BaseCommand
 
-class motd(genericcommand.genericcommand):
+class MotdHandler(BaseCommand):
     """ Returns user information about the server """
     
     def handle(self, origin, args):
-        self._state.requestMOTD(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics))
+        self._state.request_motd(
+            origin,
+            parse_numeric(args[0], self._state.max_client_numerics)
+        )

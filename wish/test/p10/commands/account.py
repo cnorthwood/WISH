@@ -1,19 +1,21 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.account
 
-class StateDouble:
-    numeric = None
-    maxClientNumerics = dict({1: 262143})
+from wish.p10.commands.account import AccountHandler
+
+class StateDouble():
+    
+    max_client_numerics = {1: 262143}
+    
     def authenticate(self, origin, numeric, acname):
         self.numeric = numeric
 
 class AccountTest(unittest.TestCase):
     
-    def testPassToState(self):
+    def test_pass_to_state(self):
         s = StateDouble()
-        c = p10.commands.account.account(s)
+        c = AccountHandler(s)
         c.handle((1,None), ["ABAAB","Test"])
         self.assertEquals(s.numeric, (1,1))
     

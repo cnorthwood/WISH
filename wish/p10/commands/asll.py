@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class asll(genericcommand.genericcommand):
+class AsllHandler(BaseCommand):
     # TODO: Implement me (non-critical feature)
     pass

@@ -2,48 +2,56 @@
 
 import unittest
 import time
-import p10.commands.gline
 
-class StateDouble:
-    rv = None
+from wish.p10.commands.gline import GlineHandler
+
+class StateDouble():
+    
     def __init__(self):
         self.rv = None
+    
+    @property
     def ts(self):
         return 1
-    def addGline(self, origin, mask, target, expires, ts, description):
+    
+    def add_gline(self, origin, mask, target, expires, ts, description):
         self.rv = ('add', mask, expires)
-    def removeGline(self, origin, mask, target, ts):
+    
+    def remove_gline(self, origin, mask, target, ts):
         self.rv = ('del', mask)
-    def getServerID(self):
+    
+    @property
+    def server_id(self):
         return 1
 
 class GlineTest(unittest.TestCase):
     
-    def testAddGline(self):
+    def test_add_gline(self):
         s = StateDouble()
-        c = p10.commands.gline.gline(s)
+        c = GlineHandler(s)
         c.handle((1,None), ['*', '+test!foo@example.com','26','43','Test gline'])
         self.assertEquals(('add', 'test!foo@example.com', 27), s.rv)
     
-    def testForceAddGline(self):
+    def test_force_add_gline(self):
         s = StateDouble()
-        c = p10.commands.gline.gline(s)
+        c = GlineHandler(s)
         c.handle((1,None), ['*', '!+test!foo@example.com','26','43','Test gline'])
         self.assertEquals(('add', 'test!foo@example.com', 27), s.rv)
     
-    def testRemoveGline(self):
+    def test_remove_gline(self):
         s = StateDouble()
-        c = p10.commands.gline.gline(s)
+        c = GlineHandler(s)
         c.handle((1,None), ['*', '-test!foo@example.com','26','43','Test gline'])
         self.assertEquals(('del', 'test!foo@example.com'), s.rv)
     
-    def testAddGlineNoModTime(self):
+    def test_add_gline_no_mod_time(self):
         s = StateDouble()
-        c = p10.commands.gline.gline(s)
+        c = GlineHandler(s)
         c.handle((1,None), ['*', '+test!foo@example.com','26','Test gline'])
         self.assertEquals(('add', 'test!foo@example.com', 27), s.rv)
     
     # No further unit tests required here - covered by test.p10.state
+
 
 def main():
     unittest.main()

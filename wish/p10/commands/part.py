@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class part(genericcommand.genericcommand):
+class PartHandler(BaseCommand):
     
     def handle(self, origin, args):
         for channel in args[0].split(","):
-            self._state.partChannel(origin, channel, args[-1])
+            self._state.part_channel(origin, channel, args[-1])

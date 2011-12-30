@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 
-import p10.base64
-import genericcommand
+from wish.p10.base64 import parse_numeric
+from wish.p10.commands.basecommand import BaseCommand
 
-class admin(genericcommand.genericcommand):
-    """ Returns information about the server """
+class AdminHandler(BaseCommand):
+    """
+    Returns information about the server
+    """
     
     def handle(self, origin, args):
-        self._state.requestAdminInfo(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics))
+        self._state.request_admininfo(
+            origin, parse_numeric(args[0], self._state.max_client_numerics)
+        )

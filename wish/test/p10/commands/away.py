@@ -1,37 +1,36 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.away
+from wish.p10.commands.away import AwayHandler
 
-class StateDouble:
-    change = ""
-    reason = ""
-    def setAway(self, numeric, reason):
+class StateDouble():
+    
+    def set_away(self, numeric, reason):
         self.change = "away"
         self.reason = reason
     
-    def setBack(self, numeric):
+    def set_back(self, numeric):
         self.change = "back"
         self.reason = ""
 
 class AwayTest(unittest.TestCase):
     
-    def testSetAwayReason(self):
+    def test_set_away_reason(self):
         s = StateDouble()
-        c = p10.commands.away.away(s)
+        c = AwayHandler(s)
         c.handle((1,1), ["I have gone away"])
         self.assertEquals("away", s.change)
         self.assertEquals("I have gone away", s.reason)
     
-    def testSetBackReason(self):
+    def test_set_back_reason(self):
         s = StateDouble()
-        c = p10.commands.away.away(s)
+        c = AwayHandler(s)
         c.handle((1,1), [""])
         self.assertEquals("back", s.change)
     
-    def testSetBackNoReason(self):
+    def test_set_back_no_reason(self):
         s = StateDouble()
-        c = p10.commands.away.away(s)
+        c = AwayHandler(s)
         c.handle((1,1), [])
         self.assertEquals("back", s.change)
     

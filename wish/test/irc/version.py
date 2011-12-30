@@ -1,33 +1,46 @@
 #!/usr/bin/env python
 
 import unittest
-import irc.version
 
-class StateDouble:
-    insight = []
+from wish.irc.version import VersionResponder
+from wish.irc.state import User, Server, Channel
+
+class StateDouble():
+    
     def __init__(self):
         self.insight = []
-    def getServerID(self):
+    
+    @property
+    def server_id(self):
         return 1
+    
     def oobmsg(self, origin, target, type, args):
         self.insight.append((origin, type, target, args))
+    
     CALLBACK_REQUESTVERSION = "RequestVersion"
-    def registerCallback(self, type, callbackfn):
+    def register_callback(self, type, callbackfn):
         pass
+
 
 class IRCVersionTest(unittest.TestCase):
     
-    def testVersionReply(self):
+    def test_version_reply(self):
         s = StateDouble()
-        c = irc.version.version(s)
-        c.callbackRequestVersion(((3,6), (1, None)))
-        self.assertEquals([((1,None), "351", (3,6), ["The WorldIRC Service Host - http://www.pling.org.uk/projects/wish/"])], s.insight)
+        c = VersionResponder(s)
+        c.callback_requestversion((3,6), (1, None))
+        self.assertEquals(
+            [
+                ((1,None), "351", (3,6), ["The WorldIRC Service Host"])
+            ],
+            s.insight
+        )
     
-    def testVersionReplyIfRelevant(self):
+    def test_version_reply_if_relevant(self):
         s = StateDouble()
-        c = irc.version.version(s)
-        c.callbackRequestVersion(((7,6), (2, None)))
+        c = VersionResponder(s)
+        c.callback_requestversion((7,6), (2, None))
         self.assertEquals([], s.insight)
+
 
 def main():
     unittest.main()

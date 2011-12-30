@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.wallops
+from wish.p10.commands.wallops import WallOpsHandler
 
-class StateDouble:
-    insight = []
+class StateDouble():
+    
     def __init__(self):
         self.insight = []
+    
     def wallops(self, origin, message):
         self.insight.append((message))
 
 class WallopsTest(unittest.TestCase):
     
-    def testWallops(self):
+    def test_wallops(self):
         s = StateDouble()
-        c = p10.commands.wallops.wallops(s)
+        c = WallOpsHandler(s)
         c.handle((1,1), ["Test"])
         self.assertEquals([("Test")], s.insight)

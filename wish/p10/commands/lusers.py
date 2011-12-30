@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 
-import p10.base64
-import genericcommand
+from wish.p10.base64 import parse_numeric
+from wish.p10.commands.basecommand import BaseCommand
 
-class lusers(genericcommand.genericcommand):
-    """ Returns user information about the server """
+class LusersHandler(BaseCommand):
+    """
+    Returns user information about the server
+    """
     
     def handle(self, origin, args):
-        self._state.requestLusers(origin, p10.base64.parseNumeric(args[1], self._state.maxClientNumerics), args[0])
+        self._state.request_lusers(
+            origin,
+            parse_numeric(args[1], self._state.max_client_numerics),
+            args[0]
+        )

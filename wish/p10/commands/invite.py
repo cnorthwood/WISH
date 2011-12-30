@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class invite(genericcommand.genericcommand):
+class InviteHandler(BaseCommand):
     
     def handle(self, origin, args):
         target = self._state.nick2numeric(args[0])

@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
 
-class end_of_burst(genericcommand.genericcommand):
-    """ Parses servers being introduced """
-    
-    _connection = None
+class EndOfBurstHandler(BaseCommand):
+    """
+    Parses servers being introduced
+    """
     
     def __init__(self, state, connection):
+        super(EndOfBurstHandler, self).__init__(state)
         self._connection = connection
-        genericcommand.genericcommand.__init__(self, state)
     
     def handle(self, origin, args):
-        self._connection.registerEOB()
+        self._connection.register_eob()

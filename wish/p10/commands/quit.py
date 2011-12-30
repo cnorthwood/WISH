@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class quit(genericcommand.genericcommand):
+class QuitHandler(BaseCommand):
     
     def handle(self, origin, args):
         self._state.quit(origin, args[-1])

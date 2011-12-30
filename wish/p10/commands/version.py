@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class version(genericcommand.genericcommand):
+class VersionHandler(BaseCommand):
     
     def handle(self, origin, args):
-        self._state.requestVersion(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics))
+        self._state.request_version(
+            origin,
+            parse_numeric(args[0], self._state.max_client_numerics)
+        )

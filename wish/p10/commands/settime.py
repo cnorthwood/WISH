@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
 # TODO
-class settime(genericcommand.genericcommand):
+class SetTimeHandler(BaseCommand):
     pass

@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class svsnick(genericcommand.genericcommand):
+class SvsNickHandler(BaseCommand):
     
     def handle(self, origin, args):
-        self._state.changeNick(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics), args[1], self._state.ts())
+        self._state.change_nick(
+            origin,
+            parse_numeric(args[0], self._state.max_client_numerics),
+            args[1],
+            self._state.ts
+        )
 
 #
 # CAUTION!

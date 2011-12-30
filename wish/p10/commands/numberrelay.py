@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class numberrelay(genericcommand.genericcommand):
-    
-    _connection = None
+class NumberRelayHandler(BaseCommand):
     
     def __init__(self, state, number):
         self._number = number
-        genericcommand.genericcommand.__init__(self, state)
+        super(NumberRelayHandler, self).__init__(state)
     
     def handle(self, origin, args):
         self._state.oobmsg(origin, self._number, args)

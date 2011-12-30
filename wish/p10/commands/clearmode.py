@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class clearmode(genericcommand.genericcommand):
+class ClearModeHandler(BaseCommand):
     
     def handle(self, origin, args):
         modes = []
         for mode in args[1]:
             if mode == "b":
-                self._state.clearChannelBans(origin, args[0])
+                self._state.clear_channel_bans(origin, args[0])
             elif mode == "o":
-                self._state.clearChannelOps(origin, args[0])
+                self._state.clear_channel_ops(origin, args[0])
             elif mode == "v":
-                self._state.clearChannelVoices(origin, args[0])
+                self._state.clear_channel_voices(origin, args[0])
             else:
                 modes.append(('-' + mode, None))
         if len(modes) > 0:
-            self._state.changeChannelMode(origin, args[0], modes)
+            self._state.change_channel_mode(origin, args[0], modes)

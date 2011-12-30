@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric, to_int
 
-class nick(genericcommand.genericcommand):
+class NickHandler(BaseCommand):
     
     def handle(self, origin, args):
         # Parse mode string if exists, and any option arguments
@@ -17,6 +17,17 @@ class nick(genericcommand.genericcommand):
                         nextarg = nextarg + 1
                     else:
                         modes.append(('+' + mode, None))
-            self._state.newUser(origin, p10.base64.parseNumeric(args[-2], self._state.maxClientNumerics), args[0], args[3], args[4], modes, p10.base64.toInt(args[-3]), args[1], args[2], args[-1])
+            self._state.new_user(
+                origin,
+                parse_numeric(args[-2], self._state.max_client_numerics),
+                args[0],
+                args[3],
+                args[4],
+                modes,
+                to_int(args[-3]),
+                args[1],
+                args[2],
+                args[-1]
+            )
         else:
-            self._state.changeNick(origin, origin, args[0], args[1])
+            self._state.change_nick(origin, origin, args[0], args[1])

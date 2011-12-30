@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.wallusers
+from wish.p10.commands.wallusers import WallUsersHandler
 
-class StateDouble:
-    insight = []
+class StateDouble():
+    
     def __init__(self):
         self.insight = []
+    
     def wallusers(self, origin, message):
         self.insight.append((message))
 
 class WallusersTest(unittest.TestCase):
     
-    def testWallusers(self):
+    def test_wallusers(self):
         s = StateDouble()
-        c = p10.commands.wallusers.wallusers(s)
+        c = WallUsersHandler(s)
         c.handle((1,1), ["Test"])
         self.assertEquals([("Test")], s.insight)

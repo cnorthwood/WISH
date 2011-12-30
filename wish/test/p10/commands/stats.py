@@ -1,33 +1,34 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.stats
+from wish.p10.commands.stats import StatsHandler
 
-class StateDouble:
+class StateDouble():
     
-    insight = None
-    maxClientNumerics = dict({1: 262143})
+    max_client_numerics = {1: 262143}
     
     def __init__(self):
         self.insight = None
     
-    def requestStats(self, origin, target, stat, arg):
+    def request_stats(self, origin, target, stat, arg):
         self.insight = (origin, target, stat, arg)
+
 
 class StatsTest(unittest.TestCase):
     
-    def testCallbackCalledSimple(self):
+    def test_callback_called_simple(self):
         s = StateDouble()
-        a = p10.commands.stats.stats(s)
+        a = StatsHandler(s)
         a.handle((1,1), ["B", "AB"])
         self.assertEquals(((1,1), (1, None), "B", None), s.insight)
     
-    def testCallbackCalledArg(self):
+    def test_callback_called_arg(self):
         s = StateDouble()
-        a = p10.commands.stats.stats(s)
+        a = StatsHandler(s)
         a.handle((1,1), ["D", "AB", "*.example.com"])
         self.assertEquals(((1,1), (1, None), "D", "*.example.com"), s.insight)
-    
+
+
 def main():
     unittest.main()
 

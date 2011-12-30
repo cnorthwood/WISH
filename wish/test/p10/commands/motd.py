@@ -1,27 +1,29 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.motd
+from wish.p10.commands.motd import MotdHandler
 
-class StateDouble:
+class StateDouble():
     
     insight = None
-    maxClientNumerics = dict({1: 262143})
+    max_client_numerics = {1: 262143}
     
     def __init__(self):
         self.insight = None
     
-    def requestMOTD(self, origin, target):
+    def request_motd(self, origin, target):
         self.insight = (origin, target)
 
-class MOTDTest(unittest.TestCase):
+
+class MotdTest(unittest.TestCase):
     
-    def testCallbackCalled(self):
+    def test_callback_called(self):
         s = StateDouble()
-        a = p10.commands.motd.motd(s)
+        a = MotdHandler(s)
         a.handle((1,1), ["AB"])
         self.assertEquals(((1,1), (1, None)), s.insight)
-    
+
+
 def main():
     unittest.main()
 

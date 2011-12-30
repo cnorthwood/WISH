@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class wallvoices(genericcommand.genericcommand):
+class WallVoicesHandler(BaseCommand):
     
     def handle(self, origin, args):
         self._state.wallvoices(origin, args[0], args[-1])

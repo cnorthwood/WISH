@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.trace
+from wish.p10.commands.trace import TraceHandler
 
-class StateDouble:
+class StateDouble():
     
-    insight = None
-    maxClientNumerics = dict({1: 262143})
+    max_client_numerics = {1: 262143}
     
     def __init__(self):
         self.insight = None
@@ -14,14 +13,16 @@ class StateDouble:
     def trace(self, origin, search, target):
         self.insight = (origin, search, target)
 
+
 class TraceTest(unittest.TestCase):
     
-    def testCallbackCalled(self):
+    def test_callback_called(self):
         s = StateDouble()
-        a = p10.commands.trace.trace(s)
+        a = TraceHandler(s)
         a.handle((1,1), ["test.example.com", "AB"])
         self.assertEquals(((1,1), "test.example.com", (1, None)), s.insight)
-    
+
+
 def main():
     unittest.main()
 

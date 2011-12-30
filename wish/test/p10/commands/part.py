@@ -1,29 +1,32 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.part
+from wish.p10.commands.part import PartHandler
 
-class StateDouble:
-    insight = []
+class StateDouble():
+    
     def __init__(self):
         self.insight = []
-    def partChannel(self, numeric, name, reason):
+    
+    def part_channel(self, numeric, name, reason):
         self.insight.append((name, reason))
+
 
 class PartTest(unittest.TestCase):
     
-    def testSinglePart(self):
+    def test_single_part(self):
         s = StateDouble()
-        c = p10.commands.part.part(s)
+        c = PartHandler(s)
         c.handle((1,1), ["#test", "Reason"])
         self.assertEquals([("#test", "Reason")], s.insight)
     
-    def testMultiPart(self):
+    def test_multi_part(self):
         s = StateDouble()
-        c = p10.commands.part.part(s)
+        c = PartHandler(s)
         c.handle((1,1), ["#test,#foo", "Reason"])
         self.assertEquals([("#test", "Reason"), ("#foo", "Reason")], s.insight)
-    
+
+ 
 def main():
     unittest.main()
 

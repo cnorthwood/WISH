@@ -1,21 +1,16 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.nick
+from wish.p10.commands.nick import NickHandler
 
-class StateDouble:
-    newusernumeric = None
-    newusernick = ""
-    newuserusername = ""
-    newuserhostname = ""
-    newusermodes = []
-    newuserip = 0
-    newuserfullname = ""
-    newnick = ""
-    maxClientNumerics = dict({1: 262143})
-    def changeNick(self, origin, numeric, newnick, newts):
+class StateDouble():
+    
+    max_client_numerics = {1: 262143}
+    
+    def change_nick(self, origin, numeric, newnick, newts):
         self.newnick = newnick
-    def newUser(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
+    
+    def new_user(self, origin, numeric, nickname, username, hostname, modes, ip, hops, ts, fullname):
         self.newusernumeric = numeric
         self.newusernick = nickname
         self.newuserusername = username
@@ -24,11 +19,12 @@ class StateDouble:
         self.newuserip = ip
         self.newuserfullname = fullname
 
+
 class NickTest(unittest.TestCase):
     
-    def testNewUserStateNewUserIsCalled(self):
+    def test_new_user_state_new_user_is_called(self):
         s = StateDouble()
-        c = p10.commands.nick.nick(s)
+        c = NickHandler(s)
         c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+g', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
@@ -38,9 +34,9 @@ class NickTest(unittest.TestCase):
         self.assertEquals(1, s.newuserip)
         self.assertEquals("Test User", s.newuserfullname)
     
-    def testNewUserNoModes(self):
+    def test_new_user_no_modes(self):
         s = StateDouble()
-        c = p10.commands.nick.nick(s)
+        c = NickHandler(s)
         c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
@@ -50,9 +46,9 @@ class NickTest(unittest.TestCase):
         self.assertEquals(1, s.newuserip)
         self.assertEquals("Test User", s.newuserfullname)
     
-    def testNewUserModeArgs(self):
+    def test_new_user_mode_args(self):
         s = StateDouble()
-        c = p10.commands.nick.nick(s)
+        c = NickHandler(s)
         c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+gh', 'test@example.com', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
@@ -62,9 +58,9 @@ class NickTest(unittest.TestCase):
         self.assertEquals(1, s.newuserip)
         self.assertEquals("Test User", s.newuserfullname)
     
-    def testNewUserModeArgsMulti(self):
+    def test_new_user_mode_args_multi(self):
         s = StateDouble()
-        c = p10.commands.nick.nick(s)
+        c = NickHandler(s)
         c.handle((1, None), ['Test', '1', '7', 'test', 'example.com', '+ghr', 'test@example.com', 'example', 'AAAAAB', 'ABAAC', 'Test User'])
         self.assertEquals((1,2), s.newusernumeric)
         self.assertEquals("Test", s.newusernick)
@@ -74,9 +70,9 @@ class NickTest(unittest.TestCase):
         self.assertEquals(1, s.newuserip)
         self.assertEquals("Test User", s.newuserfullname)
     
-    def testNickChange(self):
+    def test_nick_change(self):
         s = StateDouble()
-        c = p10.commands.nick.nick(s)
+        c = NickHandler(s)
         c.handle((1,1), ['test2', '666666'])
         self.assertEquals("test2", s.newnick)
     

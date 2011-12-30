@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class wallusers(genericcommand.genericcommand):
+class WallUsersHandler(BaseCommand):
     
     def handle(self, origin, args):
         self._state.wallusers(origin, args[-1])

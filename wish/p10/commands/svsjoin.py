@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class svsjoin(genericcommand.genericcommand):
+class SvsJoinHandler(BaseCommand):
     
     def handle(self, origin, args):
-        target = p10.base64.parseNumeric(args[0], self._state.maxClientNumerics)
+        target = parse_numeric(args[0], self._state.max_client_numerics)
         for channel in args[1].split(","):
-            self._state.joinChannel(origin, target, channel, [])
+            self._state.join_channel(origin, target, channel, [])
 
 #
 # Caution!

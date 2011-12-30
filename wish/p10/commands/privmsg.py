@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric, Base64Error
 
-class privmsg(genericcommand.genericcommand):
+class PrivmsgHandler(BaseCommand):
     
     def handle(self, origin, args):
         try:
-            target = p10.base64.parseNumeric(args[0], self._state.maxClientNumerics)
-        except p10.base64.Base64Error:
+            target = parse_numeric(args[0], self._state.max_client_numerics)
+        except Base64Error:
             target = args[0]
         self._state.privmsg(origin, target, args[-1])

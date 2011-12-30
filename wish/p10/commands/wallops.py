@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class wallops(genericcommand.genericcommand):
+class WallOpsHandler(BaseCommand):
     
     def handle(self, origin, args):
         self._state.wallops(origin, args[-1])

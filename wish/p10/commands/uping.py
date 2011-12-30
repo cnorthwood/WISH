@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
 # TODO
 
-class uping(genericcommand.genericcommand):
+class UPingHandler(BaseCommand):
     pass

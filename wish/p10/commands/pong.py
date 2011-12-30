@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class pong(genericcommand.genericcommand):
-    
-    _connection = None
+class PongHandler(BaseCommand):
     
     def __init__(self, state, connection):
         self._connection = connection
-        genericcommand.genericcommand.__init__(self, state)
+        BaseCommand.__init__(self, state)
     
     def handle(self, origin, args):
-        if p10.base64.parseNumeric(args[1], self._state.maxClientNumerics) == (self._state.getServerID(), None):
-            self._connection.registerPong()
+        if parse_numeric(args[1], self._state.max_client_numerics) \
+           == \
+           (self._state.server_id, None):
+            self._connection.register_pong()
         else:
-            self._state.registerPong(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics), p10.base64.parseNumeric(args[1], self._state.maxClientNumerics))
+            self._state.register_pong(
+                origin,
+                parse_numeric(args[0], self._state.max_client_numerics),
+                parse_numeric(args[1], self._state.max_client_numerics)
+            )

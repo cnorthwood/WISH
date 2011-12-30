@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class eob_ack(genericcommand.genericcommand):
-    """ Acknowledges the EOB """
+class EobAckHandler(BaseCommand):
+    """
+    Acknowledges the EOB
+    """
+    pass

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genericcommand
+from wish.p10.commands.basecommand import BaseCommand
 
-class topic(genericcommand.genericcommand):
+class TopicHandler(BaseCommand):
     
     def handle(self, origin, args):
         channel = args[0]
@@ -15,4 +15,5 @@ class topic(genericcommand.genericcommand):
             channel_ts = int(args[-3])
         else:
             channel_ts = 0
-        self._state.changeTopic(origin, channel, newtopic, topic_ts, channel_ts)
+        self._state.change_topic(
+            origin, channel, newtopic, topic_ts, channel_ts)

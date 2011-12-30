@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class whois(genericcommand.genericcommand):
+class WhoIsHandler(BaseCommand):
     
     def handle(self, origin, args):
         for search in args[1].split(","):
-            self._state.requestWhois(origin, p10.base64.parseNumeric(args[0], self._state.maxClientNumerics), search)
+            self._state.request_whois(
+                origin,
+                parse_numeric(args[0], self._state.max_client_numerics),
+                search
+            )

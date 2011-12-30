@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-import genericcommand
-import p10.base64
+from wish.p10.commands.basecommand import BaseCommand
+from wish.p10.base64 import parse_numeric
 
-class password(genericcommand.genericcommand):
-    """ Parses servers being introduced """
-    
-    _connection = None
+class PasswordHandler(BaseCommand):
+    """
+    Parses servers being introduced
+    """
     
     def __init__(self, state, connection):
         self._connection = connection
-        genericcommand.genericcommand.__init__(self, state)
+        super(PasswordHandler, self).__init__(state)
     
     def handle(self, origin, args):
-        self._connection.registerUpstreamPassword(args[-1])
+        self._connection.register_upstream_password(args[-1])

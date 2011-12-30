@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
-import p10.parser
-import p10.base64
-import genericcommand
+from wish.p10.base64 import parse_numeric
+from wish.p10.commands.basecommand import BaseCommand
 
-class account(genericcommand.genericcommand):
-    """ Parses the AC/ACCOUNT token - users authenticating """
+class AccountHandler(BaseCommand):
+    """
+    Parses the AC/ACCOUNT token - users authenticating
+    """
     
     def handle(self, origin, line):
-        self._state.authenticate(origin, p10.base64.parseNumeric(line[0], self._state.maxClientNumerics), line[1])
+        self._state.authenticate(
+            origin,
+            parse_numeric(line[0], self._state.max_client_numerics),
+            line[1]
+        )

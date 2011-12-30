@@ -1,21 +1,23 @@
 #!/usr/bin/env python
 
 import unittest
-import p10.commands.numberrelay
+from wish.p10.commands.numberrelay import NumberRelayHandler
 
-class StateDouble:
-    insight = None
-    maxClientNumerics = dict({1: 262143})
+class StateDouble():
+    
+    max_client_numerics = {1: 262143}
+    
     def __init__(self):
         self.insight = None
+    
     def oobmsg(self, origin, type, args):
         self.insight = (origin, type, args)
 
 class NumberRelayTest(unittest.TestCase):
     
-    def testPassToState(self):
+    def test_pass_to_state(self):
         s = StateDouble()
-        c = p10.commands.numberrelay.numberrelay(s, "123")
+        c = NumberRelayHandler(s, "123")
         c.handle((1,None), ["ABAAB", "Test"])
         self.assertEquals(((1, None), "123", ["ABAAB", "Test"]), s.insight)
     

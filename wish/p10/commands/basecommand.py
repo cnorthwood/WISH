@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-class genericcommand:
-    
-    _state = None
+class BaseCommand(object):
     
     def __init__(self, state):
         self._state = state

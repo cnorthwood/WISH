@@ -1199,6 +1199,7 @@ class State():
     # G-lines
     #
     
+    @property
     def glines(self):
         """
         Returns a list of global g-lines

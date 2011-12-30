@@ -16,7 +16,7 @@ class WBot():
         self._state.create_channel(
             (self._state.server_id, 1),
             "#help",
-            self._state.ts()
+            self._state.ts
         )
         
         self._state.create_channel(

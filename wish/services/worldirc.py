@@ -28,9 +28,10 @@ class WBot():
                                       self.callback_channel_join)
     
     def callback_channel_join(self, origin, numeric, name, modes, ts):
-        if name in ["#help", "#opers"]:
+        if name in ["#opers"]:
             self._state.privmsg(
                 (self._state.server_id, 1),
                 name,
-                "Hello, I am the test bot for the next-generation WorldIRC services."
+                "Hello %s, I am the test bot for the next-generation WorldIRC services." %
+                    self._state.numeric2nick(numeric)
             )

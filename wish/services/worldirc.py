@@ -27,7 +27,7 @@ class WBot():
         self._state.register_callback(self._state.CALLBACK_CHANNELJOIN,
                                       self.callback_channel_join)
     
-    def callback_channel_join(self, origin, name, ts):
+    def callback_channel_join(self, origin, numeric, name, modes, ts):
         if name in ["#help", "#opers"]:
             self._state.privmsg(
                 (self._state.server_id, 1),

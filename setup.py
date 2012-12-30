@@ -5,6 +5,5 @@ setup(name='WISH',
       description='WorldIRC Services Host',
       author='Chris Northwood',
       author_email='laser@worldirc.org',
-      url='http://www.python.org/sigs/distutils-sig/',
       packages=['wish', 'wish.irc', 'wish.p10', 'wish.p10.commands'],
      )

@@ -1222,13 +1222,13 @@ class StateTest(unittest.TestCase):
             (1, 1), "*!foo3@bar.com", None, expires, 6,
             "A global deactivated g-line")
         s.remove_gline((1, 1), "*!foo3@bar.com", None, 6)
-        self.assertEquals(2, len(s.glines()))
+        self.assertEquals(2, len(s.glines))
         self.assertTrue(
             ("*!foo2@bar.com", "A global test g-line", expires, True, 6)
-                in s.glines())
+                in s.glines)
         self.assertTrue(
             ("*!foo3@bar.com", "A global deactivated g-line", expires, False, 6)
-                in s.glines())
+                in s.glines)
     
     def testPartChannel(self):
         c = ConfigDouble()
